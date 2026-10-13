@@ -519,6 +519,23 @@ class MemoryStore:
                 self._settings.clear()
             self._settings[key] = value
 
+    def claim_setting_once(self, key: str) -> bool:
+        """Store a key the first time it is claimed."""
+        with self._lock, self._managed_connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT value FROM app_settings WHERE key = ?", (key,)
+            ).fetchone()
+            if row is not None:
+                self._settings[key] = str(row["value"])
+                return False
+            db.execute(
+                "INSERT INTO app_settings (key, value) VALUES (?, '1')",
+                (key,),
+            )
+            self._settings[key] = "1"
+            return True
+
     def append_message(
         self,
         *,

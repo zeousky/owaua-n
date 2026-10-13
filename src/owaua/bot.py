@@ -416,6 +416,25 @@ PROFILE_UPDATE_TIMEOUT = 20.0
 DISCORD_RETRY_INITIAL_DELAY = 5.0
 DISCORD_RETRY_MAX_DELAY = 300.0
 PING_RESPONSE = "yeah?"
+DEVELOPMENT_STOP_NOTICE = (
+    "Owaua's development is stopping. Its very unlikely I'll be doing anything "
+    "with the bot anymore. im very grateful for yall being here through the "
+    "development of owaua , thank you"
+)
+
+
+def development_stop_notice_key(user_id: object) -> str:
+    return f"development_stop_notice:{user_id}"
+
+
+def replies_to_bot(message: object, bot_user: object | None) -> bool:
+    """True when this Discord message replies to the bot."""
+    if bot_user is None:
+        return False
+    reference = getattr(message, "reference", None)
+    resolved = getattr(reference, "resolved", None)
+    author = getattr(resolved, "author", None)
+    return getattr(author, "id", None) == getattr(bot_user, "id", None)
 
 
 def language_asset_key(value: str) -> str:
@@ -1547,9 +1566,23 @@ class PersonaBot(discord.Client):
         if not unrestricted_music and len(message.content) > MAX_INPUT_CHARS:
             audit_filtered("message_too_long")
             return
+        addressed = self.user is not None and self.user in message.mentions
+        notice_reply = False
+        if (
+            message.guild is not None
+            and matched_command(normalized) is None
+            and not addressed
+            and replies_to_bot(message, self.user)
+            and self.memory.get_setting(
+                development_stop_notice_key(message.author.id), ""
+            )
+            != "1"
+        ):
+            notice_reply = True
         if (message.guild is not None and matched_command(normalized) is None
                 and not (full_mode_location(message) and is_full_mode_command(normalized))
-                and not (self.user is not None and self.user in message.mentions)):
+                and not addressed
+                and not notice_reply):
             return
         if not self.message_events.claim(message.id):
             audit_filtered("duplicate_message")
@@ -1590,6 +1623,28 @@ class PersonaBot(discord.Client):
             if task is not current_task and not task.done():
                 task.cancel()
         await self.close()
+
+    async def _development_stop_notice(self, message: discord.Message) -> bool:
+        claimed = await asyncio.to_thread(
+            self.memory.claim_setting_once,
+            development_stop_notice_key(message.author.id),
+        )
+        if not claimed:
+            return False
+        await self._reply(message, DEVELOPMENT_STOP_NOTICE)
+        if message.guild is not None and self.memory.channel_context_enabled(
+            str(message.guild.id), str(message.channel.id)
+        ):
+            await self._remember_channel_text(
+                event_id=f"line:assistant:{message.id}",
+                scope_id=str(message.channel.id),
+                server_id=str(message.guild.id),
+                user_id=str(message.author.id),
+                author="owaua",
+                content=DEVELOPMENT_STOP_NOTICE,
+                created_at=time.time(),
+            )
+        return True
 
     async def _handle_message(self, message: discord.Message) -> None:
         if message.author.bot:
@@ -1686,7 +1741,10 @@ class PersonaBot(discord.Client):
 
         is_dm = message.guild is None
         mentioned = self.user is not None and self.user in message.mentions
-        if not (is_dm or mentioned):
+        replying = replies_to_bot(message, self.user)
+        if not (is_dm or mentioned or replying):
+            return
+        if await self._development_stop_notice(message):
             return
 
         prompt = message.content
