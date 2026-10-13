@@ -52,7 +52,7 @@ INCEPTION_BASE_URL = "https://api.inceptionlabs.ai/v1"
 MERCURY_MODEL = "mercury-2.5"
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
-DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").rstrip("/")
+DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
@@ -111,7 +111,7 @@ if not GEMINI_ONLY:
         }
     )
 _SOURCE_MARKER = re.compile(r"【\d+†source】")
-DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4.1-flash").strip()
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-flash").strip()
 MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "").strip() or MODEL
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 MAX_HANGOUT_REPLY_CHARS = 280
@@ -467,9 +467,10 @@ def persona_provider(persona: str) -> str:
 
 
 def host_model_error(alias: str) -> str | None:
-    del alias
     if LOCAL_AI_ONLY:
         return None
+    if alias == "deepseek":
+        return None if DEEPSEEK_API_KEY else "deepseek is not configured"
     return None if OPENAI_API_KEY else "openai is not configured"
 
 
@@ -576,9 +577,9 @@ def build_instructions(
 ) -> str:
     identity = (
         "You are Owaua, hanging out in Discord like a person who is actually "
-        "in the server. Owner: ckazros / ckazros@owaua.com."
+        "in the server. This is an archived project operated by the person who installed it."
         if human
-        else "You are Owaua, a small Discord hangout bot. Owner: ckazros / ckazros@owaua.com."
+        else "You are Owaua, a small Discord hangout bot. This is an archived project operated by the person who installed it."
     )
     human_line = f"{_HUMAN_VOICE}\n" if human else (
         "Answer questions about your identity and capabilities truthfully.\n"
@@ -1845,6 +1846,26 @@ async def request_ai(
             call_payload, extract=chat_completion_text, authorize=authorize,
             timeout=timeout, reply_limit=reply_limit,
         )
+    if full_provider == "deepseek" and not full_mode and not LOCAL_AI_ONLY:
+        if not DEEPSEEK_API_KEY:
+            raise RuntimeError("deepseek is not configured")
+        call_payload = chat_completions_payload(
+            model=DEEPSEEK_MODEL,
+            instructions=str(payload["instructions"]),
+            api_input=payload["input"],  # type: ignore[arg-type]
+            max_output_tokens=int(payload.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
+            provider="deepseek",
+        )
+        return await _post_answer(
+            http,
+            f"{DEEPSEEK_BASE_URL}/chat/completions",
+            _auth_headers(DEEPSEEK_API_KEY),
+            call_payload,
+            extract=chat_completion_text,
+            authorize=authorize,
+            timeout=timeout,
+            reply_limit=reply_limit,
+        )
     if LOCAL_AI_ONLY or full_provider == "ollama":
         tools = payload.get("tools") if LOCAL_ENABLE_TOOLS else None
         call_payload = chat_completions_payload(
@@ -1988,6 +2009,8 @@ async def ask(
         provider = "gemini"
     if model_key == "mercury" and not full_mode and not LOCAL_AI_ONLY and persona != "blocked":
         provider = "mercury"
+    if model_key == "deepseek" and not full_mode and not LOCAL_AI_ONLY and persona != "blocked":
+        provider = "deepseek"
     if provider == "mercury" and (image_urls or research or full_mode):
         provider = "gpt"
         log.info("Mercury selection routed to Luna for tools or image input")
@@ -2010,6 +2033,9 @@ async def ask(
     )
     plan = plan_request(prompt,recent[:-1],documents=bool(documents_text),images=bool(image_urls))
     research = plan.search and not LOCAL_AI_ONLY and persona != "blocked"
+    if provider == "deepseek" and (image_urls or research or full_mode):
+        provider = "gpt"
+        log.info("DeepSeek selection routed to Luna for tools or image input")
     extended_answer = plan.kind != "casual"
     if provider == "mercury" and research:
         provider = "gpt"
@@ -2170,7 +2196,7 @@ async def ask(
             answer = humanize_reply(answer)
     if not full_mode and not extended_answer:
         answer = clip_hangout_reply(answer)
-    if model_key == "mercury" and provider not in {"mercury","ollama"} and not LOCAL_AI_ONLY and persona != "blocked":
+    if model_key in {"mercury", "deepseek"} and provider not in {"mercury", "deepseek", "ollama"} and not LOCAL_AI_ONLY and persona != "blocked":
         reason = "full-mode tools" if full_mode else "web search/image tools"
         answer = f"{answer}\n-# Used Luna for {reason}."
     return await finish(answer)

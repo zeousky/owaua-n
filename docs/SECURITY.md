@@ -1,7 +1,14 @@
 # Security
 
-Please do not post bot tokens, API keys, private conversation data, or a working exploit in a public issue.
+This repository is archived and is not actively monitored. There is no
+guaranteed response or security-fix timeline. Do not use this bot for sensitive
+or safety-critical workloads.
 
-If you find a security problem in owaua, contact the repository owner privately through GitHub. Include the affected file or feature, the impact, and concise reproduction steps. Give maintainers a reasonable chance to investigate before public disclosure.
+Do not post bot tokens, API keys, private conversation data, or a working
+exploit in a public issue. If the repository's contact channel is still
+available, you may report a vulnerability privately with the affected feature,
+impact, and concise reproduction steps. Assume that a report may not receive a
+response.
 
-For local deployments, keep `.env` and `data/` private, and use the smallest Discord permissions the bot needs.
+For self-hosted deployments, keep `.env` and `data/` private, restrict host
+access, and grant the Discord bot only the permissions it needs.

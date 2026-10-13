@@ -1470,7 +1470,7 @@ class AdmissionTests(unittest.TestCase):
         instance = object.__new__(PersonaBot)
         instance.rate_windows = defaultdict(deque)
         instance.command_used = {}
-        exempt = 1172433512364769342
+        exempt = 900000000000000001
         with patch("bot.RATE_LIMIT_REQUESTS", 1), patch("bot.RATE_LIMIT_WINDOW", 45.0):
             self.assertEqual(instance.admit_request(exempt), (True, 0))
             self.assertFalse(instance.admit_request(exempt)[0])

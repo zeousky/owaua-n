@@ -25,7 +25,7 @@ def ids(name: str, default: str = "") -> frozenset[int]:
     return values
 
 
-OWNER_IDS = ids("BOT_OWNER_IDS", "1172433512364769342")
+OWNER_IDS = ids("BOT_OWNER_IDS")
 BLOCKED_USERS = ids("BOT_BLOCKED_USER_IDS")
 ALLOWED_GUILDS = ids("BOT_ALLOWED_GUILD_IDS")
 ALLOW_DMS = limit("BOT_ALLOW_DMS", 0, 1) == 1

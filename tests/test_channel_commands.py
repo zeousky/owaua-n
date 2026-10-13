@@ -188,7 +188,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
             [AI_CREDITS_WARNING, AI_CREDITS_WARNING, AI_CREDITS_WARNING],
         )
         mocked_ask.assert_not_awaited()
-        self.assertIn("https://ko-fi.com/ckazros", channel.sent[0])
+        self.assertIn("configured AI provider credits", channel.sent[0])
         self.assertFalse(self.bot.full_mode_enabled_for(33))
 
     async def test_help_hides_owner_only_commands_from_non_owner(self) -> None:
@@ -204,7 +204,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         channel = FakeChannel()
 
         await self.bot.on_message(
-            make_message("!help", 1, channel, author_id=1172433512364769342)
+            make_message("!help", 1, channel, author_id=900000000000000001)
         )
 
         self.assertEqual(channel.sent, [OWNER_HELP_TEXT])
@@ -224,7 +224,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         channel = FakeChannel()
 
         await self.bot.on_message(
-            make_message("!pricing", 1, channel, author_id=1172433512364769342)
+            make_message("!pricing", 1, channel, author_id=900000000000000001)
         )
 
         self.assertEqual(channel.sent, [pricing_text()])
@@ -283,7 +283,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_message(make_message("!owner’s note", 1, channel))
 
         self.assertEqual(len(channel.sent), 1)
-        self.assertIn("ckazros@owaua.com", channel.sent[0])
+        self.assertIn("archived Discord bot", channel.sent[0])
 
     async def test_concurrent_duplicate_command_event_replies_once(self) -> None:
         channel = FakeChannel()
@@ -1635,7 +1635,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_exempt_user_can_repeat_the_same_command_immediately(self) -> None:
         channel = FakeChannel()
-        exempt = 1172433512364769342
+        exempt = 900000000000000001
 
         await self.bot.on_message(make_message("!help", 1, channel, author_id=exempt))
         await self.bot.on_message(make_message("!help", 2, channel, author_id=exempt))

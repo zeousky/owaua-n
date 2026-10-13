@@ -18,6 +18,7 @@ from typing import Awaitable, Callable
 
 import aiohttp
 import discord
+from discord import app_commands
 import httpx
 from dotenv import load_dotenv
 from PIL import Image
@@ -28,6 +29,7 @@ from ask import (
     LOCAL_AI_ONLY,
     MAX_ATTACHMENTS,
     LUNA_MODEL,
+    DEEPSEEK_API_KEY,
     OPENAI_API_KEY,
     INCEPTION_API_KEY,
     PERSONAS,
@@ -50,7 +52,7 @@ from cloudflare import describe_protection
 from memory import CHANNEL_CONTEXT_LINES, MemoryStore
 from intelligence import DOCUMENT_COUNT, document_kind, read_document, extract_pending_notes, summarize_pending_conversation
 from security import (OWNER_IDS, BLOCKED_USERS, ALLOWED_GUILDS, ALLOW_DMS,
-                      MAX_INFLIGHT, MAX_INPUT_CHARS, MAX_REPLY_CHARS, MAX_TRACKED_USERS)
+                      MAX_INFLIGHT, MAX_INPUT_CHARS, MAX_REPLY_CHARS, MAX_TRACKED_USERS, ids)
 from music import (
     abandon_music_if_needed,
     configure_music_audit_log,
@@ -74,8 +76,7 @@ MEMORY_DB = ROOT / "data" / "memory.sqlite3"
 RATE_LIMIT_REQUESTS = 8
 RATE_LIMIT_WINDOW = 60.0
 COMMAND_COOLDOWN = 25.0
-COOLDOWN_EXEMPT_USER_IDS = frozenset({1172433512364769342})
-HELP_OWNER_ID = 1172433512364769342
+COOLDOWN_EXEMPT_USER_IDS = OWNER_IDS
 COMMANDS = frozenset(
     {
         "!help",
@@ -94,40 +95,21 @@ COMMANDS = frozenset(
     }
 )
 AI_CREDITS_WARNING = (
-    "my owner has ran out of credits, If you'd like to keep using them, "
-    "you can donate at https://ko-fi.com/ckazros — the owner would appreciate it"
+    "this bot operator has exhausted the configured AI provider credits; "
+    "contact the operator for availability"
 )
 AI_CREDITS_EXHAUSTED = False
 DISCORD_MESSAGE_LIMIT = 1900
 ASK_TIMEOUT = 80.0
 HANDLER_TIMEOUT = 140.0
 MAX_HANDLERS = 16
-FULL_MODE_GUILD_ID = 1535083112709496903
-FULL_MODE_CHANNEL_ID = 1535083114219700227
-FULL_MODE_CHANNEL_IDS = frozenset(
-    {
-        FULL_MODE_CHANNEL_ID,
-        1549566630726602772,
-    }
-)
-FULL_MODE_BLOCKED_USER_IDS = frozenset(
-    {
-        470617205667790868,
-        836988339491962881,
-    }
-)
-FULL_MODE_ENABLE_USER_IDS = frozenset({1172433512364769342})
-FULL_MODE_ALLOWED_USER_IDS = frozenset(
-    {
-        1172433512364769342,
-        1121021729649737813,
-        1124004905292664985,
-        1511064708764139536,
-        932956672815689758,
-        1439254983219482625,
-        1391094791210536970,
-    }
-)
+FULL_MODE_GUILD_IDS = ids("BOT_FULL_MODE_GUILD_IDS")
+FULL_MODE_GUILD_ID = next(iter(FULL_MODE_GUILD_IDS), 0)
+FULL_MODE_CHANNEL_IDS = ids("BOT_FULL_MODE_CHANNEL_IDS")
+FULL_MODE_CHANNEL_ID = next(iter(FULL_MODE_CHANNEL_IDS), 0)
+FULL_MODE_BLOCKED_USER_IDS = ids("BOT_FULL_MODE_BLOCKED_USER_IDS")
+FULL_MODE_ENABLE_USER_IDS = ids("BOT_FULL_MODE_ENABLE_USER_IDS")
+FULL_MODE_ALLOWED_USER_IDS = ids("BOT_FULL_MODE_ALLOWED_USER_IDS")
 FULL_MODE_USAGE = (
     "usage: !full mode on|off, or !full mode "
     + "|".join(FULL_MODE_PROVIDERS)
@@ -139,7 +121,7 @@ HELP_TEXT = """**Owaua commands**
 `!owner's note` — a note from the bot's owner
 `!persona rudeish low|medium|high` (or `nerdish|flirty|irritating|cute|normal|random`) — view or switch your persona
 `!human on|off` — talk like a person, or use the usual hangout-bot voice
-`!model luna|mercury|reset` — choose your chat model (tools and images use Luna)
+`!model luna|deepseek|mercury|reset` — choose your chat model (tools, search, and images use Luna)
 `!context status|on|off|clear` — control this channel's surrounding chat (Manage Server to change)
 `!language <full name>|reset` — this server's reply language and profile (Manage Server)
 `!music help` — play a song in your voice channel
@@ -157,7 +139,7 @@ OWNER_HELP_TEXT = """**Owaua commands**
 `!owner's note` — a note from the bot's owner
 `!persona rudeish low|medium|high` (or `nerdish|flirty|irritating|cute|normal|random`) — view or switch your persona
 `!human on|off` — talk like a person, or use the usual hangout-bot voice
-`!model luna|mercury|reset` — choose your chat model (tools and images use Luna)
+`!model luna|deepseek|mercury|reset` — choose your chat model (tools, search, and images use Luna)
 `!context status|on|off|clear` — control this channel's surrounding chat (Manage Server to change)
 `!language <full name>|reset` — this server's reply language and profile (Manage Server)
 `!music help` — play a song in your voice channel
@@ -201,11 +183,9 @@ def pricing_text() -> str:
 
 
 OWNER_NOTE_TEXT = (
-    "Hello, I hope you like my bot! I'm trying to keep it as simple as possible "
-    "and don't pack it with useless features/commands. I spent a lot of time "
-    "developing and (trying) to promote this bot, and I really hope you like it. "
-    "I would also like to know what communities this bot is in, so if you see "
-    "this message please DM me on Discord (ckazros) or on email (ckazros@owaua.com)"
+    "Owaua is an archived Discord bot. This copy is operated and configured by "
+    "the person who installed it; there is no hosted Owaua service or active "
+    "support commitment."
 )
 
 
@@ -282,7 +262,7 @@ def full_mode_location(message: object) -> bool:
     guild = getattr(message, "guild", None)
     channel = getattr(message, "channel", None)
     return (
-        getattr(guild, "id", None) == FULL_MODE_GUILD_ID
+        getattr(guild, "id", None) in FULL_MODE_GUILD_IDS
         and getattr(channel, "id", None) in FULL_MODE_CHANNEL_IDS
     )
 
@@ -709,6 +689,30 @@ class MessageEventGuard:
         return True
 
 
+class SlashMessage:
+    """Small message-shaped adapter for reusing prefix command handlers."""
+
+    def __init__(self, bot: "PersonaBot", interaction: discord.Interaction) -> None:
+        self.author = interaction.user
+        self.guild = interaction.guild
+        self.channel = _SlashChannel(interaction)
+        self.attachments: list[object] = []
+        self.id = interaction.id
+        self.content = ""
+        self.created_at = discord.utils.utcnow()
+        self._interaction = interaction
+
+
+class _SlashChannel:
+    def __init__(self, interaction: discord.Interaction) -> None:
+        self._interaction = interaction
+        self.id = interaction.channel_id
+
+    async def send(self, content: str, **kwargs: object) -> None:
+        del kwargs
+        await self._interaction.followup.send(content or "\u200b", allowed_mentions=discord.AllowedMentions.none())
+
+
 class PersonaBot(discord.Client):
     def __init__(self) -> None:
         intents = discord.Intents.default()
@@ -716,6 +720,8 @@ class PersonaBot(discord.Client):
         super().__init__(
             intents=intents, allowed_mentions=discord.AllowedMentions.none()
         )
+        self.command_tree = app_commands.CommandTree(self)
+        self._register_slash_commands()
         self.memory = MemoryStore(MEMORY_DB)
         self.provider_http = httpx.AsyncClient(
             timeout=httpx.Timeout(60.0, connect=4.0),
@@ -741,6 +747,103 @@ class PersonaBot(discord.Client):
         self.background_active = False
         self.shutdown_requested = False
         self.active_handlers: set[asyncio.Task[object]] = set()
+
+    def _register_slash_commands(self) -> None:
+        """Expose the existing text commands as Discord slash commands."""
+        async def dispatch(interaction: discord.Interaction, argument: str = "") -> None:
+            if not interaction.response.is_done():
+                await interaction.response.defer()
+            slash_name = interaction.command.name
+            command = {
+                "owners_note": "!owner's note",
+                "topgg_full_mode": "!topgg full mode",
+                "discordify_full_mode": "!discordify full mode",
+                "full_mode": "!full mode",
+            }.get(slash_name, "!" + slash_name.replace("_", " "))
+            proxy = SlashMessage(self, interaction)
+            personal_erasure = command == "!memory" and argument.casefold() == "erase mine"
+            if proxy.guild is None and not ALLOW_DMS and proxy.author.id not in OWNER_IDS and not personal_erasure:
+                return
+            if proxy.guild is not None and ALLOWED_GUILDS and proxy.guild.id not in ALLOWED_GUILDS:
+                if not (command == "!music" and unrestricted_music_guild(proxy.guild)):
+                    return
+            await self._dispatch_command(proxy, command, argument)
+
+        descriptions = {
+            "help": "Show Owaua commands",
+            "persona": "View or change your persona",
+            "human": "Toggle the human voice",
+            "language": "Set this server's reply language",
+            "music": "Play or control music",
+            "memory": "View or manage memory",
+            "reset": "Reset Owaua settings",
+            "pricing": "Show API usage and pricing",
+            "security": "Show security and API status",
+            "switch": "Switch between Owaua and Sefbot",
+            "context": "Control channel conversation context",
+            "model": "Choose your chat model",
+            "shutdown": "Shut down Owaua",
+            "owners_note": "Show a note from Owaua's owner",
+            "full_mode": "Enable or disable full mode",
+            "topgg_full_mode": "Manage promoted full mode access",
+            "discordify_full_mode": "Manage promoted full mode access",
+        }
+        for name, description in descriptions.items():
+            async def callback(interaction: discord.Interaction, argument: str = "") -> None:
+                await dispatch(interaction, argument)
+
+            command = app_commands.Command(
+                name=name,
+                description=description,
+                callback=callback,
+            )
+            self.command_tree.add_command(command)
+
+    async def _dispatch_command(self, message: object, command: str, argument: str) -> None:
+        user_id = message.author.id
+        if command not in {"!music"} or not unrestricted_music_guild(message.guild):
+            admitted, retry_after = self.admit_command(user_id, command)
+            if not admitted:
+                await self._reply(message, f"slow down try again in {retry_after}s")
+                return
+        if command == "!help":
+            await self._reply(message, OWNER_HELP_TEXT if user_id in OWNER_IDS else HELP_TEXT)
+        elif command == "!owner's note":
+            await self._reply(message, OWNER_NOTE_TEXT)
+        elif command == "!full mode":
+            await self._reply(message, self._full_mode_command(message, argument))
+        elif command in {"!topgg full mode", "!discordify full mode"}:
+            await self._reply(message, self._promoted_full_mode_command(message, command))
+        elif command == "!persona":
+            await self._reply(message, self._persona_command(message, argument))
+        elif command == "!human":
+            await self._reply(message, self._human_command(message, argument))
+        elif command == "!language":
+            await self._reply(message, await self._language_command(message, argument))
+        elif command == "!music":
+            await self._reply(message, await handle_music_command(self, message, argument))
+        elif command == "!context":
+            await self._reply(message, self._context_command(message, argument))
+        elif command == "!model":
+            await self._reply(message, self._model_command(message, argument))
+        elif command == "!memory":
+            await self._reply(message, await self._memory_command(message, argument))
+        elif command == "!reset":
+            await self._reply(message, await self._reset_command(message, argument))
+        elif command == "!switch":
+            await self._reply(message, await self._switch_bot_command(message, "!switch " + argument))
+        elif command == "!pricing" and user_id in OWNER_IDS:
+            await self._reply(message, pricing_text())
+        elif command == "!security" and user_id in OWNER_IDS:
+            if argument.casefold() in {"pause", "resume"}:
+                self.memory.set_setting("api_paused", "1" if argument.casefold() == "pause" else "0")
+            await self._reply(message, self.memory.api_status(str(user_id)) + "; paused=" + self.memory.get_setting("api_paused", "0"))
+        elif command == "!shutdown" and user_id in OWNER_IDS:
+            await self._reply(message, "shutting down")
+            await self._shutdown()
+
+    async def on_interaction(self, interaction: discord.Interaction) -> None:
+        await self.command_tree._from_interaction(interaction)
 
     def response_language(self, message: object) -> str:
         scope_key = language_scope_key(message)
@@ -1428,6 +1531,11 @@ class PersonaBot(discord.Client):
     async def setup_hook(self) -> None:
         self.maintenance_task = asyncio.create_task(self._maintain_memory())
         self.sefbot_prepare = asyncio.create_task(self._prepare_sefbot())
+        try:
+            synced = await self.command_tree.sync()
+            log.info("Synced %d Owaua slash commands", len(synced))
+        except discord.HTTPException:
+            log.exception("Could not sync Owaua slash commands")
         reset_ids_raw = os.getenv("BOT_RESET_GUILD_QUOTA_IDS", "").strip()
         if reset_ids_raw:
             for raw_id in reset_ids_raw.split(","):
@@ -1691,11 +1799,11 @@ class PersonaBot(discord.Client):
             await self._reply(message, self.memory.api_status(str(message.author.id)) + "; paused=" + self.memory.get_setting("api_paused", "0"))
             return
         if name == "!help":
-            help_text = OWNER_HELP_TEXT if message.author.id == HELP_OWNER_ID else HELP_TEXT
+            help_text = OWNER_HELP_TEXT if message.author.id in OWNER_IDS else HELP_TEXT
             await self._reply(message, help_text)
             return
         if name == "!pricing":
-            if message.author.id == HELP_OWNER_ID:
+            if message.author.id in OWNER_IDS:
                 await self._reply(message, pricing_text())
             return
         if is_owner_note_command(text):
@@ -2140,12 +2248,20 @@ class PersonaBot(discord.Client):
         selected = argument.strip().casefold()
         if not selected:
             return f"model: {self.memory.get_setting(key, 'luna')}"
-        if selected not in {"luna", "mercury", "reset"}:
-            return "usage: !model luna|mercury|reset"
+        if selected not in {"luna", "deepseek", "mercury", "reset"}:
+            return "usage: !model luna|deepseek|mercury|reset"
+        if selected == "deepseek" and (LOCAL_AI_ONLY or not DEEPSEEK_API_KEY):
+            return "DeepSeek isn't configured here"
         if selected == "mercury" and (LOCAL_AI_ONLY or not INCEPTION_API_KEY):
             return "Mercury 2.5 isn't configured here"
         self.memory.set_setting(key, "luna" if selected == "reset" else selected)
-        return "model: " + ("Luna" if selected in {"luna", "reset"} else "Mercury 2.5 (web search and images use Luna)")
+        labels = {
+            "luna": "Luna",
+            "deepseek": "DeepSeek (web search, images, and full mode use Luna)",
+            "mercury": "Mercury 2.5 (web search and images use Luna)",
+            "reset": "Luna",
+        }
+        return "model: " + labels[selected]
 
     def _context_command(self, message: discord.Message, argument: str) -> str:
         if message.guild is None:

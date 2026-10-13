@@ -24,6 +24,7 @@ from pathlib import PurePath
 from urllib.parse import parse_qs, urlparse
 
 import discord
+from security import ids
 
 from cloudflare import ship_audit_record
 
@@ -42,7 +43,7 @@ UNRESTRICTED_FFMPEG_BEFORE_OPTIONS = (
 UNRESTRICTED_FFMPEG_OPTIONS = "-vn -threads 1"
 MAX_MEDIA_BYTES = 20 * 1024 * 1024
 MAX_MUSIC_JOBS = 2
-UNRESTRICTED_MUSIC_GUILD_IDS = frozenset({1535083112709496903})
+UNRESTRICTED_MUSIC_GUILD_IDS = ids("BOT_UNRESTRICTED_MUSIC_GUILD_IDS")
 _ACTIVE_SOURCES: set[object] = set()
 YTDLP_FORMAT = (
     "bestaudio[acodec=opus][abr<=160]/"
@@ -148,6 +149,15 @@ UNSAFE_STREAM_REPLY = "no playable audio found"
 LIVE_STREAM_REPLY = "live streams and 24/7 radios aren't allowed"
 LONG_TRACK_REPLY = "that video is too long; send a single song under 15 minutes"
 MAX_TRACK_SECONDS = 15 * 60
+YOUTUBE_BOT_CHECK = "YOUTUBE_BOT_CHECK"
+YOUTUBE_BLOCKED_REPLY = (
+    "YouTube is blocking this server, so that song can't be resolved"
+)
+
+
+def youtube_cookies_file() -> Path | None:
+    path = Path(__file__).resolve().parents[2] / "data" / "youtube-cookies.txt"
+    return path if path.is_file() else None
 
 
 def unrestricted_music_guild(guild: object) -> bool:
@@ -784,12 +794,19 @@ async def resolve_music(
     )
     env = {
         key: os.environ[key]
-        for key in ("PATH", "SYSTEMROOT", "SSL_CERT_FILE", "TMPDIR")
+        for key in (
+            "PATH", "HOME", "LANG", "LC_ALL", "LD_LIBRARY_PATH",
+            "SYSTEMROOT", "SSL_CERT_FILE", "SSL_CERT_DIR", "TMPDIR",
+        )
         if key in os.environ
     }
+    cookies = youtube_cookies_file()
+    if cookies is not None:
+        env["YOUTUBE_COOKIES_FILE"] = str(cookies)
     command = [
         sys.executable,
-        "-I",
+        "-E",
+        "-P",
         str(Path(__file__).with_name("music_worker.py")),
         lookup,
     ]
@@ -809,6 +826,8 @@ async def resolve_music(
             detail = error_output.decode("utf-8", "replace").strip().splitlines()
             if detail:
                 log.warning("Music resolver worker failed: %s", detail[-1][:1000])
+            if any(YOUTUBE_BOT_CHECK in line for line in detail):
+                raise ValueError(YOUTUBE_BLOCKED_REPLY)
             raise ValueError("Could not resolve that song")
         info = json.loads(output)
         if not unrestricted:

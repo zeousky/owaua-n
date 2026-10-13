@@ -89,8 +89,8 @@ forced_values = {
     "OWAUA_LOCAL_ONLY": "1",
     "OWAUA_LOCAL_BASE_URL": "http://127.0.0.1:8080/v1",
     "OWAUA_LOCAL_MODEL": "default_model",
-    "OWAUA_LOCAL_AI_ROOT": "/Users/ckazro/mlx-lm-deepgrove",
-    "OWAUA_LOCAL_AI_MODEL_PATH": "/Users/ckazro/mlx-lm-deepgrove/maple-2bit-mlx",
+    "OWAUA_LOCAL_AI_ROOT": os.environ.get("OWAUA_LOCAL_AI_ROOT", ""),
+    "OWAUA_LOCAL_AI_MODEL_PATH": os.environ.get("OWAUA_LOCAL_AI_MODEL_PATH", ""),
 }
 
 lines = []

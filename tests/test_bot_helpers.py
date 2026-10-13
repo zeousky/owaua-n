@@ -60,6 +60,7 @@ from music import (
     PLAYLIST_URL_REPLY,
     TWITTER_STATUS_URL_REPLY,
     UNRESTRICTED_MUSIC_GUILD_IDS,
+    YOUTUBE_BLOCKED_REPLY,
     YTDLP_EXTRACTORS,
     _connect_to_author,
     abandon_music_if_needed,
@@ -76,7 +77,7 @@ from music import (
 class BotHelperTests(unittest.TestCase):
     def test_ai_credit_pause_is_off(self) -> None:
         self.assertFalse(AI_CREDITS_EXHAUSTED)
-        self.assertIn("https://ko-fi.com/ckazros", AI_CREDITS_WARNING)
+        self.assertIn("configured AI provider credits", AI_CREDITS_WARNING)
 
     def test_discord_retry_delay_is_exponential_and_capped(self) -> None:
         self.assertEqual(discord_retry_delay(0), 0.0)
@@ -149,26 +150,26 @@ class BotHelperTests(unittest.TestCase):
 
         second_allowed = SimpleNamespace(
             guild=SimpleNamespace(id=FULL_MODE_GUILD_ID),
-            channel=SimpleNamespace(id=1549566630726602772),
+            channel=SimpleNamespace(id=900000000000000004),
         )
-        self.assertIn(1549566630726602772, FULL_MODE_CHANNEL_IDS)
+        self.assertIn(900000000000000004, FULL_MODE_CHANNEL_IDS)
         self.assertTrue(full_mode_location(second_allowed))
         self.assertFalse(full_mode_location(other_channel))
         self.assertFalse(full_mode_location(other_guild))
         self.assertFalse(full_mode_location(dm))
-        self.assertTrue(full_mode_blocked(470617205667790868))
-        self.assertTrue(full_mode_blocked(836988339491962881))
+        self.assertTrue(full_mode_blocked(900000000000000005))
+        self.assertTrue(full_mode_blocked(900000000000000006))
         self.assertFalse(full_mode_blocked(33))
-        self.assertTrue(full_mode_can_enable(1172433512364769342))
-        self.assertFalse(full_mode_can_enable(836988339491962881))
+        self.assertTrue(full_mode_can_enable(900000000000000001))
+        self.assertFalse(full_mode_can_enable(900000000000000006))
         self.assertFalse(full_mode_can_enable(33))
-        self.assertFalse(full_mode_can_enable(470617205667790868))
-        self.assertFalse(full_mode_allowed(836988339491962881))
-        self.assertTrue(full_mode_allowed(1391094791210536970))
+        self.assertFalse(full_mode_can_enable(900000000000000005))
+        self.assertFalse(full_mode_allowed(900000000000000006))
+        self.assertTrue(full_mode_allowed(900000000000000007))
         self.assertTrue(full_mode_allowed(next(iter(FULL_MODE_ALLOWED_USER_IDS))))
-        self.assertTrue(full_mode_allowed(1172433512364769342))
+        self.assertTrue(full_mode_allowed(900000000000000001))
         self.assertFalse(full_mode_allowed(33))
-        self.assertFalse(full_mode_allowed(470617205667790868))
+        self.assertFalse(full_mode_allowed(900000000000000005))
 
     def test_referenced_message_context_quotes_the_replied_to_text(self) -> None:
         bot_reply = SimpleNamespace(
@@ -382,6 +383,10 @@ class BotHelperTests(unittest.TestCase):
             "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         )
         self.assertEqual(
+            music_lookup("https://youtu.be/dQw4w9WgXcQ?si=abcdefghij1234567890"),
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        )
+        self.assertEqual(
             music_lookup("https://music.youtube.com/watch?v=dQw4w9WgXcQ&list=RDAMVM"),
             "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         )
@@ -478,13 +483,68 @@ class MusicAsyncTests(unittest.IsolatedAsyncioTestCase):
     async def test_resolve_music_uses_disposable_worker(self) -> None:
         info = {"title": "Creep", "url": "https://r1.googlevideo.com/audio", "duration": 200, "acodec": "opus"}
         process = SimpleNamespace(returncode=0, communicate=AsyncMock(return_value=(json.dumps(info).encode(), b"")), wait=AsyncMock())
-        with patch("music.asyncio.create_subprocess_exec", AsyncMock(return_value=process)) as spawn:
+        with patch.dict(
+            "os.environ",
+            {"HOME": "/tmp/owaua-real-home", "DISCORD_TOKEN": "secret", "OPENAI_API_KEY": "secret"},
+        ), patch("music.asyncio.create_subprocess_exec", AsyncMock(return_value=process)) as spawn:
             track = await resolve_music("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         self.assertEqual(spawn.call_args.args[-1], "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        self.assertIn("-E", spawn.call_args.args)
+        self.assertIn("-P", spawn.call_args.args)
+        self.assertNotIn("-I", spawn.call_args.args)
+        self.assertEqual(spawn.call_args.kwargs["env"].get("HOME"), "/tmp/owaua-real-home")
         self.assertNotIn("OPENAI_API_KEY", spawn.call_args.kwargs["env"])
         self.assertNotIn("PERPLEXITY_API_KEY", spawn.call_args.kwargs["env"])
+        self.assertNotIn("DISCORD_TOKEN", spawn.call_args.kwargs["env"])
         self.assertEqual(track["title"], "Creep")
         self.assertEqual(track["http_headers"], {})
+
+    async def test_resolve_music_reports_a_youtube_block(self) -> None:
+        process = SimpleNamespace(
+            returncode=1,
+            communicate=AsyncMock(return_value=(b"", b"YOUTUBE_BOT_CHECK\n")),
+            wait=AsyncMock(),
+        )
+        with patch("music.asyncio.create_subprocess_exec", AsyncMock(return_value=process)):
+            with self.assertRaisesRegex(ValueError, re.escape(YOUTUBE_BLOCKED_REPLY)):
+                await resolve_music("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+    async def test_resolve_music_passes_a_youtube_cookies_file(self) -> None:
+        info = {"title": "Creep", "url": "https://r1.googlevideo.com/audio", "duration": 200}
+        process = SimpleNamespace(
+            returncode=0,
+            communicate=AsyncMock(return_value=(json.dumps(info).encode(), b"")),
+            wait=AsyncMock(),
+        )
+        with tempfile.NamedTemporaryFile() as cookie_file, patch(
+            "music.youtube_cookies_file", return_value=Path(cookie_file.name)
+        ), patch("music.asyncio.create_subprocess_exec", AsyncMock(return_value=process)) as spawn:
+            await resolve_music("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        self.assertEqual(
+            spawn.call_args.kwargs["env"].get("YOUTUBE_COOKIES_FILE"),
+            cookie_file.name,
+        )
+
+    def test_music_worker_keeps_a_small_solver_cache_limit(self) -> None:
+        from music_worker import SOLVER_CACHE_BYTES, _solver_cache
+        import os
+        import shutil
+
+        self.assertGreater(SOLVER_CACHE_BYTES, 0)
+        self.assertLessEqual(SOLVER_CACHE_BYTES, 4 * 1024 * 1024)
+        saved = {key: os.environ.get(key) for key in ("HOME", "DENO_DIR", "XDG_CACHE_HOME", "TMPDIR")}
+        cache = tempfile.mkdtemp()
+        try:
+            _solver_cache(cache)
+            self.assertEqual(os.environ.get("HOME"), saved["HOME"])
+            self.assertTrue(os.environ["DENO_DIR"].startswith(cache))
+        finally:
+            for key, value in saved.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            shutil.rmtree(cache, ignore_errors=True)
 
     async def test_resolve_music_strips_mix_parameters_before_ytdlp(self) -> None:
         info = {"title": "Song", "url": "https://r1.googlevideo.com/audio", "duration": 200}

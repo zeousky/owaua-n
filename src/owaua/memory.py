@@ -381,7 +381,7 @@ class MemoryStore:
             ).fetchone()[0]
             if limits.per_user and used >= limits.per_user:
                 raise BudgetExceeded(
-                    "AI request limit reached; try again later or DM ckazros / ckazros@owaua.com"
+                    "AI request limit reached; try again later or contact this bot's operator"
                 )
             db.execute(
                 "INSERT INTO api_usage VALUES (?, ?, ?, ?)",

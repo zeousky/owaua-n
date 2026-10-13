@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import wave
 import time
@@ -23,6 +24,16 @@ if not shutil.which("ffmpeg"):
     raise RuntimeError("FFmpeg is missing")
 if not shutil.which("deno"):
     raise RuntimeError("Deno is missing; YouTube links cannot be resolved")
+resolver = subprocess.run(
+    [sys.executable, "-E", "-P", "-c", "import yt_dlp, deno; deno.find_deno_bin()"],
+    check=False,
+    capture_output=True,
+    timeout=30,
+)
+if resolver.returncode != 0:
+    detail = resolver.stderr.decode("utf-8", "replace").strip().splitlines()
+    message = detail[-1][:300] if detail else "music resolver imports failed"
+    raise RuntimeError(message)
 
 output = io.BytesIO()
 with wave.open(output, "wb") as wav:

@@ -1,14 +1,17 @@
-# Contributing to owaua
+# Contributing to Owaua
 
-Small, focused changes are easiest to review. Before opening a pull request:
+This repository is archived. The original project is not actively maintained;
+issues and pull requests may not be reviewed or answered. Fork it if you want to
+continue development.
 
-1. Keep credentials, local databases, and server-specific settings out of Git.
-2. Install dependencies with `bash scripts/setup-codex.sh`, then run
-   `bash scripts/test.sh` and `.venv/bin/ruff check .`.
-3. Deploy only when requested, using `./scripts/deploy-daki.sh` for Daki or
-   `./scripts/deploy-local.sh` for the local profile. Editing and testing in
-   Codex cloud do not require a deployment; see [cloud setup](CODEX_CLOUD.md).
-4. Update the README when a command or configuration setting changes.
-5. Keep persona edits conversational, clear, and respectful of consent and safety.
+For a maintained fork:
 
-Please explain the reason for a behavior change in the pull request description and include a test when practical.
+1. Keep credentials, databases, logs, and server-specific settings out of Git.
+2. Install dependencies with `bash scripts/setup-codex.sh`.
+3. Run `bash scripts/test.sh` and `.venv/bin/ruff check .` before proposing a
+   change.
+4. Update the documentation when commands or configuration change.
+5. Keep persona edits conversational and respectful of consent and safety.
+
+Never include tokens, private conversation content, or other people's personal
+data in an issue or pull request.

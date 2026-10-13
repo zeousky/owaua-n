@@ -1,9 +1,22 @@
 """Disposable, credential-free metadata worker for approved media hosts. No downloads."""
 
 import json
+import os
 import re
+import shutil
 import sys
+import tempfile
 from urllib.parse import urlparse
+
+SOLVER_CACHE_BYTES = 4 * 1024 * 1024
+
+
+def _solver_cache(cache_dir: str) -> None:
+    os.environ["DENO_DIR"] = os.path.join(cache_dir, "deno")
+    os.environ["XDG_CACHE_HOME"] = os.path.join(cache_dir, "cache")
+    os.environ["TMPDIR"] = os.path.join(cache_dir, "tmp")
+    for path in (os.environ["DENO_DIR"], os.environ["XDG_CACHE_HOME"], os.environ["TMPDIR"]):
+        os.makedirs(path, exist_ok=True)
 
 
 def main() -> None:
@@ -17,11 +30,21 @@ def main() -> None:
             import resource
             resource.setrlimit(resource.RLIMIT_CPU, (20, 20))
             resource.setrlimit(resource.RLIMIT_AS, (1024**3, 1024**3))
-            resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))
+            resource.setrlimit(resource.RLIMIT_FSIZE, (SOLVER_CACHE_BYTES, SOLVER_CACHE_BYTES))
         except ImportError:
             raise RuntimeError("Media processing requires a Unix host")
-    import yt_dlp
     import deno
+    deno_bin = deno.find_deno_bin()
+    cache_dir = tempfile.mkdtemp(prefix="owaua-music-")
+    try:
+        _solver_cache(cache_dir)
+        _resolve(unrestricted, deno_bin)
+    finally:
+        shutil.rmtree(cache_dir, ignore_errors=True)
+
+
+def _resolve(unrestricted: bool, deno_bin: str) -> None:
+    import yt_dlp
     lookup = sys.argv[1]
     parsed = urlparse(lookup)
     twitter_status = re.fullmatch(r"/(?:[A-Za-z0-9_]{1,15}|i)/status/[0-9]{1,30}", parsed.path)
@@ -39,17 +62,25 @@ def main() -> None:
         "noplaylist": not unrestricted, "playlistend": 1,
         "quiet": True, "no_warnings": True, "cachedir": False,
         "retries": 0, "fragment_retries": 0, "socket_timeout": 8,
-        "js_runtimes": {"deno": {"path": deno.find_deno_bin()}},
+        "js_runtimes": {"deno": {"path": deno_bin}},
     }
     if unrestricted:
         options["default_search"] = "ytsearch1"
         options["js_runtimes"] = {
-            "deno": {"path": deno.find_deno_bin()}, "node": {}, "quickjs": {}, "bun": {},
+            "deno": {"path": deno_bin}, "node": {}, "quickjs": {}, "bun": {},
         }
     else:
         options["allowed_extractors"] = ["youtube", "twitter"]
+    cookies = os.environ.get("YOUTUBE_COOKIES_FILE", "")
+    if cookies:
+        options["cookiefile"] = cookies
     with yt_dlp.YoutubeDL(options) as downloader:
-        info = downloader.extract_info(lookup, download=False)
+        try:
+            info = downloader.extract_info(lookup, download=False)
+        except Exception as exc:
+            if "not a bot" in str(exc).casefold():
+                print("YOUTUBE_BOT_CHECK", file=sys.stderr)
+            raise
         if "entries" in info:
             info = next((entry for entry in info["entries"] if entry), None)
         if not info:
