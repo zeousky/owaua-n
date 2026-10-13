@@ -692,7 +692,7 @@ class MessageEventGuard:
 class SlashMessage:
     """Small message-shaped adapter for reusing prefix command handlers."""
 
-    def __init__(self, bot: "PersonaBot", interaction: discord.Interaction) -> None:
+    def __init__(self, bot: PersonaBot, interaction: discord.Interaction) -> None:
         self.author = interaction.user
         self.guild = interaction.guild
         self.channel = _SlashChannel(interaction)
@@ -841,9 +841,6 @@ class PersonaBot(discord.Client):
         elif command == "!shutdown" and user_id in OWNER_IDS:
             await self._reply(message, "shutting down")
             await self._shutdown()
-
-    async def on_interaction(self, interaction: discord.Interaction) -> None:
-        await self.command_tree._from_interaction(interaction)
 
     def response_language(self, message: object) -> str:
         scope_key = language_scope_key(message)
@@ -1362,6 +1359,12 @@ class PersonaBot(discord.Client):
                 )
             except (discord.HTTPException, discord.Forbidden):
                 return
+            return
+        if (
+            interaction.type is discord.InteractionType.application_command
+            and self.command_tree.get_command(name) is not None
+        ):
+            await self.command_tree._from_interaction(interaction)
             return
         if interaction.type is discord.InteractionType.component:
             await self._forward_sefbot_component(interaction)
