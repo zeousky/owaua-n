@@ -115,7 +115,7 @@ class BotHelperTests(unittest.TestCase):
         self.assertEqual(matched_command("!OWNER’S NOTE"), "!owner's note")
         self.assertEqual(matched_command("!persona irritating"), "!persona")
         self.assertEqual(matched_command("!persona cute"), "!persona")
-        self.assertIsNone(matched_command("!full mode on"))
+        self.assertEqual(matched_command("!full mode on"), "!full")
         self.assertIsNone(matched_command("hello"))
         self.assertIsNone(matched_command("!unknown"))
         self.assertIsNone(matched_command("!owner's"))
@@ -206,6 +206,7 @@ class BotHelperTests(unittest.TestCase):
         self.assertEqual(parse_persona_argument("Rudeish HIGH"), ("rudeish-high", None))
         self.assertEqual(parse_persona_argument("irritating"), ("irritating", None))
         self.assertEqual(parse_persona_argument("cute"), ("cute", None))
+        self.assertEqual(parse_persona_argument("explicit"), ("explicit", None))
         self.assertEqual(parse_persona_argument("normal"), ("normal", None))
         self.assertEqual(parse_persona_argument("random"), ("random", None))
         self.assertEqual(parse_persona_argument("RANDOM"), ("random", None))
@@ -485,7 +486,12 @@ class MusicAsyncTests(unittest.IsolatedAsyncioTestCase):
         process = SimpleNamespace(returncode=0, communicate=AsyncMock(return_value=(json.dumps(info).encode(), b"")), wait=AsyncMock())
         with patch.dict(
             "os.environ",
-            {"HOME": "/tmp/owaua-real-home", "DISCORD_TOKEN": "secret", "OPENAI_API_KEY": "secret"},
+            {
+                "HOME": "/tmp/owaua-real-home",
+                "DISCORD_TOKEN": "secret",
+                "OPENAI_API_KEY": "secret",
+                "XAI_API_KEY": "secret",
+            },
         ), patch("music.asyncio.create_subprocess_exec", AsyncMock(return_value=process)) as spawn:
             track = await resolve_music("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         self.assertEqual(spawn.call_args.args[-1], "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
@@ -494,6 +500,7 @@ class MusicAsyncTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("-I", spawn.call_args.args)
         self.assertEqual(spawn.call_args.kwargs["env"].get("HOME"), "/tmp/owaua-real-home")
         self.assertNotIn("OPENAI_API_KEY", spawn.call_args.kwargs["env"])
+        self.assertNotIn("XAI_API_KEY", spawn.call_args.kwargs["env"])
         self.assertNotIn("PERPLEXITY_API_KEY", spawn.call_args.kwargs["env"])
         self.assertNotIn("DISCORD_TOKEN", spawn.call_args.kwargs["env"])
         self.assertEqual(track["title"], "Creep")

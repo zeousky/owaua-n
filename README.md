@@ -4,15 +4,15 @@
 
 Owaua is a Discord bot for chatting in servers. Ping it and it talks back.
 
-Pick a persona: `rudeish`, `nerdish`, `flirty`, `irritating`, `cute`, or `normal`.
+Pick a persona: `rudeish`, `nerdish`, `flirty`, `explicit`, `irritating`, `cute`, or `normal`.
 Casual chat stays short; ask for help and it gives fuller answers. It can search
 the web, read images and documents, remember useful details, and play music.
-Luna is the default model; Mercury is available for text chat.
+Grok is the default chat model when configured. Full mode uses Grok 4.7 with medium reasoning. Luna handles hangout search and images. DeepSeek and Mercury stay available for text chat.
 
 Use `!help` for all commands. A few essentials:
 
 - `!persona <name>` — change its voice
-- `!model luna|deepseek|mercury|reset` — choose your model
+- `!model grok|luna|deepseek|mercury|reset` — choose your model
 - `!music help` — music controls
 - `!memory view|pause|resume` — inspect or control saved notes
 - `!memory erase mine` — erase your conversation history and notes

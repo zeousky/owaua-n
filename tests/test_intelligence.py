@@ -155,6 +155,49 @@ class IntelligenceAskTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.memory.list_notes("7", "one"), [])
         self.assertEqual(len(self.memory.list_notes("7", "two")), 1)
 
+    async def test_grok_text_uses_xai(self):
+        with patch("ask.XAI_API_KEY", "test-only-key"):
+            await self._ask("hello", model_key="grok")
+        url, request = self.http.calls[-1]
+        body = request["json"]
+        self.assertIn("api.x.ai", url)
+        self.assertTrue(url.endswith("/responses"))
+        self.assertEqual(body["model"], "grok-4.7")
+        self.assertEqual(body["reasoning"], {"effort": "low"})
+        self.assertIs(body["store"], False)
+        self.assertEqual(body["prompt_cache_key"], "owaua-grok")
+        self.assertNotIn("tools", body)
+        self.assertIn("Stay in this voice", body["instructions"])
+
+    async def test_full_mode_uses_grok_medium(self):
+        with patch("ask.XAI_API_KEY", "test-only-key"):
+            await self._ask("explain recursion", full_mode=True, event_id="full")
+        url, request = self.http.calls[-1]
+        body = request["json"]
+        self.assertIn("api.x.ai", url)
+        self.assertTrue(url.endswith("/responses"))
+        self.assertEqual(body["model"], "grok-4.7")
+        self.assertEqual(body["reasoning"], {"effort": "medium"})
+        self.assertEqual(body["max_output_tokens"], 900)
+        self.assertEqual([tool["type"] for tool in body["tools"]], ["web_search", "code_interpreter"])
+        self.assertNotIn("container", body["tools"][1])
+        self.assertNotIn("include", body)
+
+    async def test_grok_search_and_images_use_luna(self):
+        with patch("ask.XAI_API_KEY", "test-only-key"):
+            answer = await self._ask("latest news", model_key="grok", event_id="search")
+            self.assertIn("api.openai.com", self.http.calls[-1][0])
+            self.assertEqual(self.http.calls[-1][1]["json"]["model"], "gpt-6-luna")
+            self.assertIn("Used Luna", answer)
+            result = await self._ask(
+                "look",
+                image_urls=["https://cdn.discordapp.com/image.png"],
+                model_key="grok",
+                event_id="image",
+            )
+        self.assertIn("api.openai.com", self.http.calls[-1][0])
+        self.assertIn("Used Luna", result)
+
     async def test_mercury_image_uses_luna(self):
         with patch("ask.INCEPTION_API_KEY", "test-only-key"):
             result = await self._ask("look", image_urls=["https://cdn.discordapp.com/image.png"], model_key="mercury")

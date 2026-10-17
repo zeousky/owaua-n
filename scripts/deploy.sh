@@ -58,6 +58,7 @@ required_runtime = {
     Path("personas/rudeish-high.txt"),
     Path("personas/nerdish.txt"),
     Path("personas/flirty.txt"),
+    Path("personas/explicit.txt"),
     Path("personas/irritating.txt"),
     Path("personas/cute.txt"),
     Path("personas/normal.txt"),

@@ -149,7 +149,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(channel.send_kwargs[0].get("suppress_embeds"), True)
         self.assertNotIn("!active", channel.sent[0])
         self.assertIn("!persona rudeish low|medium|high", channel.sent[0])
-        self.assertIn("nerdish|flirty|irritating|cute|normal", channel.sent[0])
+        self.assertIn("nerdish|flirty|explicit|irritating|cute|normal", channel.sent[0])
         self.assertIn("!human on|off", channel.sent[0])
         self.assertNotIn("host default", channel.sent[0])
         self.assertIn("!owner's note", channel.sent[0])
@@ -208,6 +208,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(channel.sent, [OWNER_HELP_TEXT])
+        self.assertIn("!full mode on|off", channel.sent[0])
         self.assertIn("!security status|pause|resume", channel.sent[0])
         self.assertIn("!shutdown", channel.sent[0])
 
@@ -229,7 +230,28 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(channel.sent, [pricing_text()])
         self.assertIn("gpt-6-luna", channel.sent[0])
+        self.assertIn("grok-4.7", channel.sent[0])
         self.assertNotIn("claude", channel.sent[0].casefold())
+
+    def test_model_command_selects_grok_when_configured(self) -> None:
+        message = make_message("!model", 1, FakeChannel())
+        key = f"chat_model:user:{message.author.id}"
+        with patch("bot.XAI_API_KEY", "test-only-key"), patch("bot.LOCAL_AI_ONLY", False):
+            self.assertEqual(self.bot._model_command(message, ""), "model: grok")
+            self.assertEqual(
+                self.bot._model_command(message, "grok"),
+                "model: Grok (web search and images use Luna)",
+            )
+            self.assertEqual(self.store.get_setting(key), "grok")
+            self.assertEqual(
+                self.bot._model_command(message, "reset"),
+                "model: Grok (web search and images use Luna)",
+            )
+        with patch("bot.XAI_API_KEY", ""), patch("bot.LOCAL_AI_ONLY", False):
+            self.assertEqual(self.bot._model_command(message, "grok"), "Grok isn't configured here")
+            self.assertEqual(self.store.get_setting(key), "grok")
+            self.assertEqual(self.bot._model_command(message, "reset"), "model: Luna")
+            self.assertEqual(self.store.get_setting(key), "luna")
 
     async def test_trusted_guild_music_bypasses_command_cooldown(self) -> None:
         channel = FakeChannel()
@@ -439,28 +461,26 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.bot.full_mode_enabled_for(owner))
         self.assertEqual(self.store.get_setting(f"full_mode:{owner}"), "0")
 
-    async def test_full_mode_command_is_ignored_outside_the_allowed_channel(self) -> None:
+    async def test_owner_can_enable_full_mode_outside_the_designated_channel(self) -> None:
+        owner = next(iter(OWNER_IDS))
         same_guild = self._full_mode_message(
-            "!full mode on", 1, channel_id=22
+            "!full mode on", 1, author_id=owner, channel_id=22
         )
         other_guild = self._full_mode_message(
-            "!full mode on", 2, guild_id=11
+            "!full mode on", 2, author_id=owner, guild_id=11
         )
-        dm = self._full_mode_message("!full mode on", 3, guild_id=None)
+        dm = self._full_mode_message("!full mode on", 3, author_id=owner, guild_id=None)
 
-        with patch("bot.ask", AsyncMock(return_value="hey")) as mocked_ask:
+        with patch("bot.COMMAND_COOLDOWN", 0), patch("bot.ask", AsyncMock(return_value="hey")) as mocked_ask:
             await self.bot.on_message(same_guild)
             await self.bot.on_message(other_guild)
             await self.bot.on_message(dm)
 
-        self.assertEqual(same_guild.channel.sent, [])
-        self.assertEqual(other_guild.channel.sent, [])
-        self.assertEqual(dm.channel.sent, ["hey"])
-        self.assertFalse(
-            self.bot.full_mode_enabled_for(next(iter(FULL_MODE_ENABLE_USER_IDS)))
-        )
-        mocked_ask.assert_awaited_once()
-        self.assertFalse(mocked_ask.await_args.kwargs["full_mode"])
+        self.assertEqual(same_guild.channel.sent, ["full mode on"])
+        self.assertEqual(other_guild.channel.sent, ["full mode on"])
+        self.assertEqual(dm.channel.sent, ["full mode on"])
+        self.assertTrue(self.bot.full_mode_enabled_for(owner))
+        mocked_ask.assert_not_awaited()
 
     async def test_full_mode_command_still_matches_when_the_bot_is_pinged(self) -> None:
         message = self._full_mode_message(
@@ -493,22 +513,22 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.bot.full_mode_enabled_for(33))
         self.assertEqual(self.store.get_setting("full_mode:33", ""), "")
 
-    async def test_allowlisted_user_can_enable_full_mode_for_themselves(self) -> None:
-        allowed_user = next(iter(FULL_MODE_ALLOWED_USER_IDS))
+    async def test_allowlisted_user_cannot_enable_full_mode(self) -> None:
+        allowed_user = 900000000000000007
         message = self._full_mode_message(
             "!full mode on", 1, author_id=allowed_user
         )
 
         await self.bot.on_message(message)
 
-        self.assertEqual(message.channel.sent, ["full mode on"])
-        self.assertTrue(self.bot.full_mode_enabled_for(allowed_user))
-        self.assertEqual(self.store.get_setting(f"full_mode:{allowed_user}"), "1")
+        self.assertEqual(message.channel.sent, ["you can't use this"])
+        self.assertFalse(self.bot.full_mode_enabled_for(allowed_user))
+        self.assertEqual(self.store.get_setting(f"full_mode:{allowed_user}", ""), "")
 
     async def test_designated_channel_does_not_bypass_full_mode_user_checks(
         self,
     ) -> None:
-        allowed_user = next(iter(FULL_MODE_ALLOWED_USER_IDS))
+        allowed_user = 900000000000000007
         self.bot.set_full_mode_for(allowed_user, True)
         allowed = self._full_mode_message(
             "<@99> hello",
@@ -645,7 +665,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
             self.bot.full_mode_enabled_for(next(iter(FULL_MODE_ENABLE_USER_IDS)))
         )
 
-    async def test_full_mode_ping_outside_the_channel_is_ordinary_chat(self) -> None:
+    async def test_full_mode_command_rejects_non_owners_instead_of_chatting(self) -> None:
         message = make_message(
             "<@99> !full mode on",
             1,
@@ -656,10 +676,9 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         with patch("bot.ask", AsyncMock(return_value="hey")) as mocked_ask:
             await self.bot.on_message(message)
 
-        mocked_ask.assert_awaited_once()
-        self.assertFalse(mocked_ask.await_args.kwargs["full_mode"])
+        mocked_ask.assert_not_awaited()
         self.assertFalse(self.bot.full_mode_enabled_for(33))
-        self.assertEqual(message.channel.sent, ["hey"])
+        self.assertEqual(message.channel.sent, ["you can't use this"])
 
     async def test_full_mode_reports_a_missing_gpt_key(self) -> None:
         message = self._full_mode_message("!full mode on", 1)
@@ -672,7 +691,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_full_mode_uses_chat_rate_limit_and_admission(self) -> None:
-        allowed_user = next(iter(FULL_MODE_ALLOWED_USER_IDS))
+        allowed_user = 900000000000000007
         self.bot.set_full_mode_for(allowed_user, True)
         self.bot.inflight_users = {1, 2, 3}
         first = self._full_mode_message(
@@ -741,15 +760,15 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         image_file = channel.send_kwargs[1]["file"]
         self.assertEqual(image_file.filename, "owaua-1.png")
 
-    async def test_full_mode_uses_command_cooldown(self) -> None:
-        allowed_user = next(iter(FULL_MODE_ALLOWED_USER_IDS))
+    async def test_owner_full_mode_help_skips_command_cooldown(self) -> None:
+        allowed_user = next(iter(OWNER_IDS))
         self.bot.set_full_mode_for(allowed_user, True)
         first = self._full_mode_message("!help", 1, author_id=allowed_user)
         second = self._full_mode_message("!help", 2, author_id=allowed_user)
         await self.bot.on_message(first)
         await self.bot.on_message(second)
-        self.assertEqual(first.channel.sent, [HELP_TEXT])
-        self.assertEqual(second.channel.sent, ["slow down try again in 25s"])
+        self.assertEqual(first.channel.sent, [OWNER_HELP_TEXT])
+        self.assertEqual(second.channel.sent, [OWNER_HELP_TEXT])
 
     async def test_full_mode_sends_capped_replies_and_images(self) -> None:
         allowed_user = next(iter(FULL_MODE_ALLOWED_USER_IDS))
@@ -791,6 +810,14 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(self.store.get_setting("persona:user:33", "rudeish"), "flirty")
         self.assertEqual(channel.sent, ["persona: flirty"])
+        self.assertTrue(self.store.get_setting("persona_changed_at:user:33", ""))
+
+    async def test_explicit_persona_can_be_selected(self) -> None:
+        channel = FakeChannel()
+        await self.bot.on_message(make_message("!persona explicit", 1, channel))
+        self.assertEqual(self.store.get_setting("persona:user:33", "rudeish"), "explicit")
+        self.assertEqual(channel.sent, ["persona: explicit"])
+        self.assertNotIn("explicit", RANDOM_PERSONA_CHOICES)
 
     async def test_flirty_persona_reports_a_missing_gemini_key(self) -> None:
         channel = FakeChannel(nsfw=True)
@@ -1640,8 +1667,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_message(make_message("!help", 1, channel, author_id=exempt))
         await self.bot.on_message(make_message("!help", 2, channel, author_id=exempt))
 
-        self.assertEqual(channel.sent[0], OWNER_HELP_TEXT)
-        self.assertIn("slow down", channel.sent[1])
+        self.assertEqual(channel.sent, [OWNER_HELP_TEXT, OWNER_HELP_TEXT])
 
 
 if __name__ == "__main__":

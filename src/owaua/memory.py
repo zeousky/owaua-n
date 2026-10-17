@@ -768,7 +768,7 @@ class MemoryStore:
     ) -> list[dict[str, str]]:
         with self._lock, self._managed_connection() as db:
             query = """
-                SELECT user_id, author, content
+                SELECT user_id, author, content, created_at
                 FROM channel_lines
                 WHERE scope_id = ? AND created_at >= ?
             """
@@ -784,6 +784,7 @@ class MemoryStore:
                 "user_id": str(row["user_id"]),
                 "author": str(row["author"]),
                 "content": str(row["content"]),
+                "created_at": str(row["created_at"]),
             }
             for row in reversed(rows)
         ]

@@ -31,6 +31,7 @@ from ask import (
     LUNA_MODEL,
     DEEPSEEK_API_KEY,
     OPENAI_API_KEY,
+    XAI_API_KEY,
     INCEPTION_API_KEY,
     PERSONAS,
     RANDOM_PERSONA,
@@ -92,6 +93,7 @@ COMMANDS = frozenset(
         "!switch",
         "!context",
         "!model",
+        "!full",
     }
 )
 AI_CREDITS_WARNING = (
@@ -101,6 +103,7 @@ AI_CREDITS_WARNING = (
 AI_CREDITS_EXHAUSTED = False
 DISCORD_MESSAGE_LIMIT = 1900
 ASK_TIMEOUT = 80.0
+FULL_ASK_TIMEOUT = 120.0
 HANDLER_TIMEOUT = 140.0
 MAX_HANDLERS = 16
 FULL_MODE_GUILD_IDS = ids("BOT_FULL_MODE_GUILD_IDS")
@@ -119,9 +122,9 @@ PROMOTED_FULL_MODE_PROMPT_LIMIT = 8
 HELP_TEXT = """**Owaua commands**
 `!help` — show this command list
 `!owner's note` — a note from the bot's owner
-`!persona rudeish low|medium|high` (or `nerdish|flirty|irritating|cute|normal|random`) — view or switch your persona
+`!persona rudeish low|medium|high` (or `nerdish|flirty|explicit|irritating|cute|normal|random`) — view or switch your persona
 `!human on|off` — talk like a person, or use the usual hangout-bot voice
-`!model luna|deepseek|mercury|reset` — choose your chat model (tools, search, and images use Luna)
+`!model grok|luna|deepseek|mercury|reset` — choose your chat model (web search and images use Luna; full mode uses Grok)
 `!context status|on|off|clear` — control this channel's surrounding chat (Manage Server to change)
 `!language <full name>|reset` — this server's reply language and profile (Manage Server)
 `!music help` — play a song in your voice channel
@@ -137,9 +140,9 @@ Each command has a 25s cooldown."""
 OWNER_HELP_TEXT = """**Owaua commands**
 `!help` — show this command list
 `!owner's note` — a note from the bot's owner
-`!persona rudeish low|medium|high` (or `nerdish|flirty|irritating|cute|normal|random`) — view or switch your persona
+`!persona rudeish low|medium|high` (or `nerdish|flirty|explicit|irritating|cute|normal|random`) — view or switch your persona
 `!human on|off` — talk like a person, or use the usual hangout-bot voice
-`!model luna|deepseek|mercury|reset` — choose your chat model (tools, search, and images use Luna)
+`!model grok|luna|deepseek|mercury|reset` — choose your chat model (web search and images use Luna; full mode uses Grok)
 `!context status|on|off|clear` — control this channel's surrounding chat (Manage Server to change)
 `!language <full name>|reset` — this server's reply language and profile (Manage Server)
 `!music help` — play a song in your voice channel
@@ -149,6 +152,7 @@ OWNER_HELP_TEXT = """**Owaua commands**
 `!memory correct <id> <text>` / `!memory forget <id>` — correct or remove one note
 `!reset all` — fully reset this bot in this server (Manage Server required)
 `!switch bot` — run sefbot in this server, or switch back (Manage Server)
+`!full mode on|off` — capable Grok answers with tools (bot owner only)
 `!security status|pause|resume` — API usage and emergency pause (bot owner only)
 `!shutdown` — fully stop the bot (bot owner only)
 `!pricing` — show model pricing (bot owner only)
@@ -161,9 +165,10 @@ MODEL_PRICING = {
     "openai/gpt-5.6-luna": (0.20, 1.20, "0.02 cached input"),
     "gpt-5.6-luna": (0.20, 1.20, "0.02 cached input"),
     "anthropic/claude-haiku-4-5": (1.00, 5.00, "provider pricing"),
-    "deepseek-v4.1-flash": (0.30, 1.20, "provider pricing"),
+    "deepseek-v4.1-flash": (0.30, 1.20, "InferX list; promo $0.09 in / $0.36 out"),
     "zai/glm-5.3-flash": (0.50, 2.00, "provider pricing"),
     "openai/gpt-oss-20b": (0.075, 0.30, "0.0375 cached input"),
+    "grok-4.7": (2.00, 6.00, "0.50 cached input"),
 }
 
 
@@ -179,7 +184,7 @@ def _pricing_line(label: str, model: str) -> str:
 
 
 def pricing_text() -> str:
-    return "**Owaua model pricing**\nDefault: gpt-6-luna. Optional text model: mercury-2.5.\nProvider logs report actual input/output tokens and tool activity.\nCurrent pricing: https://developers.openai.com/api/docs/pricing/ and https://www.inceptionlabs.ai/"
+    return "**Owaua model pricing**\nDefault chat model: grok-4.7 when configured (input $2, output $6; 0.50 cached input). Full mode uses grok-4.7 at medium reasoning. Hangout search and images use gpt-6-luna. Optional text models: deepseek-v4.1-flash and mercury-2.5.\nProvider logs report actual input/output tokens and tool activity.\nCurrent pricing: https://docs.x.ai/developers/pricing, https://developers.openai.com/api/docs/pricing/, and https://www.inceptionlabs.ai/"
 
 
 OWNER_NOTE_TEXT = (
@@ -187,6 +192,12 @@ OWNER_NOTE_TEXT = (
     "the person who installed it; there is no hosted Owaua service or active "
     "support commitment."
 )
+
+
+def default_chat_model() -> str:
+    if LOCAL_AI_ONLY or not XAI_API_KEY:
+        return "luna"
+    return "grok"
 
 
 def is_owner_note_command(content: str) -> bool:
@@ -327,8 +338,8 @@ def discordify_full_mode_setting_key(user_id: object) -> str:
 
 PERSONA_USAGE = (
     "usage: !persona rudeish low|medium|high, !persona nerdish, "
-    "!persona flirty, !persona irritating, !persona cute, !persona normal, "
-    "or !persona random"
+    "!persona flirty, !persona explicit, !persona irritating, !persona cute, "
+    "!persona normal, or !persona random"
 )
 HUMAN_USAGE = "usage: !human on or !human off"
 
@@ -867,8 +878,6 @@ class PersonaBot(discord.Client):
         selected = normalize_persona(
             self.memory.get_setting(persona_setting_key(message), "rudeish")
         )
-        if selected == "explicit":
-            selected = "flirty"
         if selected != RANDOM_PERSONA and not valid_persona(selected):
             selected = normalize_persona("rudeish")
         return selected
@@ -905,8 +914,6 @@ class PersonaBot(discord.Client):
 
     def persona_for(self, channel: object, message: object | None = None) -> str:
         selected = normalize_persona(self.selected_persona)
-        if selected == "explicit":
-            selected = "flirty"
         if message is not None:
             if full_mode_blocked(getattr(getattr(message, "author", None), "id", None)):
                 return "blocked"
@@ -1476,13 +1483,19 @@ class PersonaBot(discord.Client):
         self.memory.set_setting(full_mode_setting_key(user_id), "0")
 
     def full_mode_active(self, message: object) -> bool:
-        if not full_mode_location(message):
-            return False
         author = getattr(message, "author", None)
         user_id = getattr(author, "id", None)
-        return self.full_mode_allowed_for(user_id) and self.full_mode_enabled_for(user_id)
+        if full_mode_blocked(user_id) or not self.full_mode_enabled_for(user_id):
+            return False
+        if user_id in OWNER_IDS:
+            return True
+        if not full_mode_location(message):
+            return False
+        return self.full_mode_allowed_for(user_id)
 
     def admit_request(self, user_id: int) -> tuple[bool, int]:
+        if user_id in COOLDOWN_EXEMPT_USER_IDS:
+            return True, 0
         now = time.monotonic()
         if user_id not in self.rate_windows and len(self.rate_windows) >= MAX_TRACKED_USERS:
             self.rate_windows = defaultdict(deque, {key: value for key, value in self.rate_windows.items() if value and now-value[-1] < RATE_LIMIT_WINDOW})
@@ -1500,6 +1513,8 @@ class PersonaBot(discord.Client):
     def admit_command(
         self, user_id: int, command: str, *, now: float | None = None
     ) -> tuple[bool, int]:
+        if user_id in COOLDOWN_EXEMPT_USER_IDS:
+            return True, 0
         current = time.monotonic() if now is None else now
         key = (user_id, command)
         last = self.command_used.get(key)
@@ -1975,9 +1990,13 @@ class PersonaBot(discord.Client):
                         documents_text="\n\n".join(documents),
                         user_statement=user_statement,
                         quoted_context=quoted,
-                        model_key=self.memory.get_setting(f"chat_model:user:{user_id}", "luna"),
+                        model_key=self.memory.get_setting(
+                            f"chat_model:user:{user_id}", default_chat_model()
+                        ),
                     )
-                answer = await asyncio.wait_for(request, timeout=ASK_TIMEOUT)
+                answer = await asyncio.wait_for(
+                    request, timeout=FULL_ASK_TIMEOUT if full_mode else ASK_TIMEOUT
+                )
             if not answer:
                 return
             await self._reply(message, answer)
@@ -2006,11 +2025,7 @@ class PersonaBot(discord.Client):
 
     def _full_mode_command(self, message: discord.Message, requested: str) -> str:
         user_id = message.author.id
-        if (
-            full_mode_blocked(user_id)
-            or not self.full_mode_allowed_for(user_id)
-            and not full_mode_can_enable(user_id)
-        ):
+        if user_id not in OWNER_IDS or full_mode_blocked(user_id):
             return "you can't use this"
         text = " ".join(requested.casefold().split())
         if text in {"", "mode"}:
@@ -2089,6 +2104,7 @@ class PersonaBot(discord.Client):
             self.memory.set_setting(
                 random_persona_setting_key(message), random.choice(choices)
             )
+            self._mark_persona_change(message)
             # Never reveal which persona was chosen.
             return "persona: random"
         provider = persona_provider(persona)
@@ -2100,7 +2116,14 @@ class PersonaBot(discord.Client):
         if problem is not None:
             return problem
         self.memory.set_setting(persona_setting_key(message), persona)
+        self._mark_persona_change(message)
         return f"persona: {persona_label(persona)}"
+
+    def _mark_persona_change(self, message: discord.Message) -> None:
+        self.memory.set_setting(
+            f"persona_changed_at:user:{message.author.id}",
+            str(time.time()),
+        )
 
     def _human_command(self, message: discord.Message, requested: str) -> str:
         if not requested.strip():
@@ -2249,20 +2272,25 @@ class PersonaBot(discord.Client):
     def _model_command(self, message: discord.Message, argument: str) -> str:
         key = f"chat_model:user:{message.author.id}"
         selected = argument.strip().casefold()
+        fallback = default_chat_model()
         if not selected:
-            return f"model: {self.memory.get_setting(key, 'luna')}"
-        if selected not in {"luna", "deepseek", "mercury", "reset"}:
-            return "usage: !model luna|deepseek|mercury|reset"
+            return f"model: {self.memory.get_setting(key, fallback)}"
+        if selected not in {"grok", "luna", "deepseek", "mercury", "reset"}:
+            return "usage: !model grok|luna|deepseek|mercury|reset"
+        if selected == "grok" and (LOCAL_AI_ONLY or not XAI_API_KEY):
+            return "Grok isn't configured here"
         if selected == "deepseek" and (LOCAL_AI_ONLY or not DEEPSEEK_API_KEY):
             return "DeepSeek isn't configured here"
         if selected == "mercury" and (LOCAL_AI_ONLY or not INCEPTION_API_KEY):
             return "Mercury 2.5 isn't configured here"
-        self.memory.set_setting(key, "luna" if selected == "reset" else selected)
+        stored = fallback if selected == "reset" else selected
+        self.memory.set_setting(key, stored)
         labels = {
+            "grok": "Grok (web search and images use Luna)",
             "luna": "Luna",
             "deepseek": "DeepSeek (web search, images, and full mode use Luna)",
             "mercury": "Mercury 2.5 (web search and images use Luna)",
-            "reset": "Luna",
+            "reset": "Grok (web search and images use Luna)" if stored == "grok" else "Luna",
         }
         return "model: " + labels[selected]
 

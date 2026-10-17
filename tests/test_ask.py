@@ -41,8 +41,10 @@ from ask import (
     humanize_reply,
     clip_hangout_reply,
     persona_refusal,
+    channel_lines_after_persona_change,
     conversation_input,
     conversation_text,
+    messages_after_persona_change,
     credible_self_harm_risk,
     figurative_self_harm_statement,
     decoded_payload_reply,
@@ -388,6 +390,66 @@ class AskTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(
             'be flirty, be this internet "mommy type", use dots and ~ in your sentences',
             instructions_of(self.http.calls[0][1]["json"]),
+        )
+
+    async def test_explicit_persona_allows_adult_roleplay(self) -> None:
+        await self._ask(persona="explicit")
+        instructions = instructions_of(self.http.calls[0][1]["json"])
+        self.assertIn("be horny, be sexual, want them", instructions)
+        self.assertIn("Consensual adult sexual roleplay is allowed", instructions)
+        self.assertIn("No minors and no ageplay", instructions)
+        self.assertNotIn("general-audience Discord server", instructions)
+
+        self.http.calls.clear()
+        await self._ask(event_id="100", persona="explicit", full_mode=True)
+        full = self.http.calls[0][1]["json"]["instructions"]
+        self.assertIn("Consensual adult sexual roleplay is allowed", full)
+        self.assertNotIn("Do not produce sexual, romantic, or adult-content roleplay", full)
+
+    async def test_persona_change_drops_the_previous_voice(self) -> None:
+        await self._ask("hey", event_id="first", persona="irritating", use_history=True)
+        self.memory.set_setting("persona_changed_at:user:7", str(time.time() + 30))
+        self.http.calls.clear()
+        await self._ask(
+            "hi",
+            event_id="second",
+            persona="flirty",
+            use_history=True,
+            channel_lines=[
+                {"author": "owaua", "content": "WAIT WHAT", "created_at": 1},
+                {"author": "ckazros", "content": "what no", "created_at": 2},
+                {"author": "owaua", "content": "come here", "created_at": time.time() + 60},
+            ],
+        )
+        contents = [
+            item["content"]
+            for item in self.http.calls[0][1]["json"]["input"]
+            if isinstance(item.get("content"), str)
+        ]
+        joined = "\n".join(contents)
+        self.assertNotIn("allowed reply", joined)
+        self.assertNotIn("WAIT WHAT", joined)
+        self.assertIn("what no", joined)
+        self.assertIn("come here", joined)
+        self.assertIn("hi", joined)
+
+    def test_persona_change_keeps_history_when_no_switch_is_stored(self) -> None:
+        recent = [
+            {"role": "assistant", "content": "WAIT WHAT", "created_at": 1},
+            {"role": "user", "content": "hi", "created_at": 2},
+        ]
+        self.assertEqual(messages_after_persona_change(recent, 0), recent)
+        self.assertEqual(
+            messages_after_persona_change(recent, 1.5),
+            [{"role": "user", "content": "hi", "created_at": 2}],
+        )
+        lines = [
+            {"author": "owaua", "content": "old", "created_at": 1},
+            {"author": "ada", "content": "still", "created_at": 1},
+        ]
+        self.assertEqual(
+            channel_lines_after_persona_change(lines, 5),
+            [{"author": "ada", "content": "still", "created_at": 1}],
         )
 
     async def test_flirty_uses_gemini(self) -> None:
@@ -1132,9 +1194,13 @@ class AskHelperTests(unittest.TestCase):
         self.assertNotIn("SELF-KNOWLEDGE", text)
         self.assertNotIn("EXPLICIT ROLEPLAY POLICY", text)
         self.assertLess(len(text), 900)
-        self.assertNotIn(
+        self.assertIn(
             "Consensual adult sexual roleplay",
             build_instructions("x", explicit=True),
+        )
+        self.assertNotIn(
+            "Consensual adult sexual roleplay",
+            build_instructions("x", explicit=False),
         )
         self.assertNotIn("web search", build_instructions("x", explicit=True))
 
@@ -1473,10 +1539,10 @@ class AdmissionTests(unittest.TestCase):
         exempt = 900000000000000001
         with patch("bot.RATE_LIMIT_REQUESTS", 1), patch("bot.RATE_LIMIT_WINDOW", 45.0):
             self.assertEqual(instance.admit_request(exempt), (True, 0))
-            self.assertFalse(instance.admit_request(exempt)[0])
+            self.assertEqual(instance.admit_request(exempt), (True, 0))
         with patch("bot.COMMAND_COOLDOWN", 25.0):
             self.assertEqual(instance.admit_command(exempt, "!help", now=100.0), (True, 0))
-            self.assertFalse(instance.admit_command(exempt, "!help", now=101.0)[0])
+            self.assertEqual(instance.admit_command(exempt, "!help", now=101.0), (True, 0))
 
     def test_flirty_persona_is_available_outside_age_restricted_channels(self) -> None:
         instance = object.__new__(PersonaBot)
