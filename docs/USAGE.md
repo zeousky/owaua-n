@@ -2,7 +2,7 @@
 
 This command reference describes the archived Owaua bot. Commands that call AI providers can incur charges for the operator. `!human on` changes the reply style. DMs are disabled by default.
 
-Personas are `rudeish` (`low`, `medium`, `high`, medium by default), `nerdish`, `flirty`, `explicit`, `irritating`, `cute`, and `normal`. `explicit` is opt-in adult sexual roleplay and is not part of `!persona random`. Grok is the usual chat model when configured, and full mode uses Grok 4.7 with medium reasoning. `!model luna`, `!model deepseek`, and `!model mercury` select the other text models when configured; hangout searches and images may use Luna, and the reply identifies that routing.
+Personas are `rudeish` (`low`, `medium`, `high`, medium by default), `nerdish`, `flirty`, `explicit`, `irritating`, `cute`, `femboy`, and `normal`. `explicit` is opt-in adult sexual roleplay and is not part of `!persona random`. Grok is the usual chat model when configured, and full mode uses Grok 4.7 with medium reasoning. `!model luna`, `!model deepseek`, and `!model mercury` select the other text models when configured; hangout searches and images may use Luna, and the reply identifies that routing.
 
 It can help with code, explain things, look things up, read images, and read PDF, text, Markdown, CSV, and JSON files. Casual replies stay short. A real question can run longer. Code tools are only for approved full-mode users.
 
@@ -10,7 +10,7 @@ It can help with code, explain things, look things up, read images, and read PDF
 
 `!help` prints these. There is a 25 second cooldown.
 
-- `!persona rudeish low|medium|high`, or `nerdish|flirty|explicit|irritating|cute|normal`
+- `!persona rudeish low|medium|high`, or `nerdish|flirty|explicit|irritating|cute|femboy|normal`
 - `!persona random` picks a hidden persona and does not say which
 - `!human on|off`
 - `!model grok|luna|deepseek|mercury|reset` (optional models need their provider keys)

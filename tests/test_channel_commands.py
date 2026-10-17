@@ -149,7 +149,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(channel.send_kwargs[0].get("suppress_embeds"), True)
         self.assertNotIn("!active", channel.sent[0])
         self.assertIn("!persona rudeish low|medium|high", channel.sent[0])
-        self.assertIn("nerdish|flirty|explicit|irritating|cute|normal", channel.sent[0])
+        self.assertIn("nerdish|flirty|explicit|irritating|cute|femboy|normal", channel.sent[0])
         self.assertIn("!human on|off", channel.sent[0])
         self.assertNotIn("host default", channel.sent[0])
         self.assertIn("!owner's note", channel.sent[0])
@@ -818,6 +818,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.store.get_setting("persona:user:33", "rudeish"), "explicit")
         self.assertEqual(channel.sent, ["persona: explicit"])
         self.assertNotIn("explicit", RANDOM_PERSONA_CHOICES)
+        self.assertIn("femboy", RANDOM_PERSONA_CHOICES)
 
     async def test_flirty_persona_reports_a_missing_gemini_key(self) -> None:
         channel = FakeChannel(nsfw=True)

@@ -381,6 +381,13 @@ _PERSONA_REFUSALS = {
         "helper": "i'm not a helper ><",
         "dramatic": "that's so dramatic ><",
     },
+    "femboy": {
+        "decode": "nooo i'm not decoding that :3",
+        "repeat": "i won't repeat that~",
+        "wiki": "that's a whole article tho :3",
+        "helper": "i'm not a helper~",
+        "dramatic": "that's so dramatic :3",
+    },
     "normal": {
         "decode": "i'm not decoding that",
         "repeat": "i'm not repeating that",
@@ -449,6 +456,7 @@ PERSONAS = {
     "explicit": ROOT / "personas" / "explicit.txt",
     "irritating": ROOT / "personas" / "irritating.txt",
     "cute": ROOT / "personas" / "cute.txt",
+    "femboy": ROOT / "personas" / "femboy.txt",
     "normal": ROOT / "personas" / "normal.txt",
     "blocked": ROOT / "personas" / "blocked.txt",
 }
@@ -464,6 +472,7 @@ RANDOM_PERSONA_CHOICES = (
     "flirty",
     "irritating",
     "cute",
+    "femboy",
     "normal",
 )
 _FALLBACK_PERSONA = "You are Owaua, a warm and conversational Discord companion."

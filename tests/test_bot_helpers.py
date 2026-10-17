@@ -206,6 +206,8 @@ class BotHelperTests(unittest.TestCase):
         self.assertEqual(parse_persona_argument("Rudeish HIGH"), ("rudeish-high", None))
         self.assertEqual(parse_persona_argument("irritating"), ("irritating", None))
         self.assertEqual(parse_persona_argument("cute"), ("cute", None))
+        self.assertEqual(parse_persona_argument("femboy"), ("femboy", None))
+        self.assertEqual(parse_persona_argument("FEMBOY"), ("femboy", None))
         self.assertEqual(parse_persona_argument("explicit"), ("explicit", None))
         self.assertEqual(parse_persona_argument("normal"), ("normal", None))
         self.assertEqual(parse_persona_argument("random"), ("random", None))

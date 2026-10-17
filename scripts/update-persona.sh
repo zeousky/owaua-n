@@ -21,7 +21,7 @@ if [[ ! -f "$OWAUA_DEPLOY_SCRIPT" ]]; then
   exit 1
 fi
 
-PERSONA_MODELS="${*:-rudeish nerdish flirty explicit irritating}"
+PERSONA_MODELS="${*:-rudeish nerdish flirty explicit irritating femboy}"
 
 ROOT_DIR="$ROOT_DIR" OWAUA_DEPLOY_SCRIPT="$OWAUA_DEPLOY_SCRIPT" PERSONA_MODELS="$PERSONA_MODELS" python3 - <<'PY'
 import hashlib
@@ -41,6 +41,7 @@ model_files = {
     "explicit": "personas/explicit.txt",
     "irritating": "personas/irritating.txt",
     "cute": "personas/cute.txt",
+    "femboy": "personas/femboy.txt",
     "normal": "personas/normal.txt",
 }
 rudeish_level_models = ("rudeish-low", "rudeish-medium", "rudeish-high")

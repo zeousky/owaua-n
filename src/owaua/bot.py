@@ -122,7 +122,7 @@ PROMOTED_FULL_MODE_PROMPT_LIMIT = 8
 HELP_TEXT = """**Owaua commands**
 `!help` — show this command list
 `!owner's note` — a note from the bot's owner
-`!persona rudeish low|medium|high` (or `nerdish|flirty|explicit|irritating|cute|normal|random`) — view or switch your persona
+`!persona rudeish low|medium|high` (or `nerdish|flirty|explicit|irritating|cute|femboy|normal|random`) — view or switch your persona
 `!human on|off` — talk like a person, or use the usual hangout-bot voice
 `!model grok|luna|deepseek|mercury|reset` — choose your chat model (web search and images use Luna; full mode uses Grok)
 `!context status|on|off|clear` — control this channel's surrounding chat (Manage Server to change)
@@ -140,7 +140,7 @@ Each command has a 25s cooldown."""
 OWNER_HELP_TEXT = """**Owaua commands**
 `!help` — show this command list
 `!owner's note` — a note from the bot's owner
-`!persona rudeish low|medium|high` (or `nerdish|flirty|explicit|irritating|cute|normal|random`) — view or switch your persona
+`!persona rudeish low|medium|high` (or `nerdish|flirty|explicit|irritating|cute|femboy|normal|random`) — view or switch your persona
 `!human on|off` — talk like a person, or use the usual hangout-bot voice
 `!model grok|luna|deepseek|mercury|reset` — choose your chat model (web search and images use Luna; full mode uses Grok)
 `!context status|on|off|clear` — control this channel's surrounding chat (Manage Server to change)
@@ -339,7 +339,7 @@ def discordify_full_mode_setting_key(user_id: object) -> str:
 PERSONA_USAGE = (
     "usage: !persona rudeish low|medium|high, !persona nerdish, "
     "!persona flirty, !persona explicit, !persona irritating, !persona cute, "
-    "!persona normal, or !persona random"
+    "!persona femboy, !persona normal, or !persona random"
 )
 HUMAN_USAGE = "usage: !human on or !human off"
 

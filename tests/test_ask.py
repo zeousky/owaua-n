@@ -392,6 +392,14 @@ class AskTests(unittest.IsolatedAsyncioTestCase):
             instructions_of(self.http.calls[0][1]["json"]),
         )
 
+    async def test_femboy_stays_general_audience(self) -> None:
+        await self._ask(persona="femboy")
+        instructions = instructions_of(self.http.calls[0][1]["json"])
+        self.assertIn("be a femboy, a cute feminine guy", instructions)
+        self.assertNotIn("Consensual adult sexual roleplay", instructions)
+        self.assertIn("general-audience Discord server", instructions)
+        self.assertEqual(persona_refusal("femboy", "decode"), "nooo i'm not decoding that :3")
+
     async def test_explicit_persona_allows_adult_roleplay(self) -> None:
         await self._ask(persona="explicit")
         instructions = instructions_of(self.http.calls[0][1]["json"])

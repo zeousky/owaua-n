@@ -61,6 +61,7 @@ required_runtime = {
     Path("personas/explicit.txt"),
     Path("personas/irritating.txt"),
     Path("personas/cute.txt"),
+    Path("personas/femboy.txt"),
     Path("personas/normal.txt"),
     Path("requirements.txt"),
     Path("scripts/run-bots.sh"),
