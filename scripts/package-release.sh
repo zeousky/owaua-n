@@ -11,7 +11,7 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
 fi
 
 TAG="v$VERSION"
-PACKAGE_NAME="owaua-$VERSION"
+PACKAGE_NAME="kirmy-$VERSION"
 DIST_DIR="$ROOT_DIR/dist"
 
 if [[ -n "$(git status --short)" ]]; then

@@ -14,6 +14,6 @@ about: Report an issue in this archived, unsupported project
 **Environment**
 - Operating system:
 - Python version:
-- Owaua revision:
+- Kirmy revision:
 
 Do not paste `.env` values, tokens, private messages, or database contents.

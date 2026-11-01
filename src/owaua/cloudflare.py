@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(os.getenv("OWAUA_ENV_FILE") or ROOT / ".env")
-log = logging.getLogger("owaua")
+log = logging.getLogger("kirmy")
 
 GATEWAY_HOST = "gateway.ai.cloudflare.com"
 PERPLEXITY_DIRECT = "https://api.perplexity.ai/v1"
@@ -68,7 +68,7 @@ def request_headers(*, provider: str = "", user_id: str = "", server_id: str = "
     token = os.getenv("CLOUDFLARE_AI_GATEWAY_TOKEN", "").strip()
     if token:
         headers["cf-aig-authorization"] = f"Bearer {token}"
-    metadata = {"app": "owaua"}
+    metadata = {"app": "kirmy"}
     if provider:
         metadata["provider"] = provider
     if user_id:
@@ -147,7 +147,7 @@ def ship_audit_record(payload: str) -> None:
         loop = asyncio.get_running_loop()
     except Exception:
         return
-    loop.create_task(_ship_audit_record(url, token, payload), name="owaua-cf-audit")
+    loop.create_task(_ship_audit_record(url, token, payload), name="kirmy-cf-audit")
 
 
 async def _ship_audit_record(url: str, token: str, payload: str) -> None:

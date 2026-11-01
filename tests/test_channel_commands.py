@@ -21,9 +21,7 @@ from bot import (
     FULL_MODE_ENABLE_USER_IDS,
     FULL_MODE_GUILD_ID,
     FULL_MODE_USAGE,
-    DEVELOPMENT_STOP_NOTICE,
     HELP_TEXT,
-    development_stop_notice_key,
     OWNER_HELP_TEXT,
     OWNER_NOTE_TEXT,
     OWNER_IDS,
@@ -130,12 +128,6 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         self.bot.response_languages = {}
         self.bot.shutdown_requested = False
         self.bot.active_handlers = set()
-        self._notice_patch = patch.object(
-            MemoryStore, "claim_setting_once", return_value=False
-        )
-        self._notice_patch.start()
-        self.addCleanup(self._notice_patch.stop)
-
     def tearDown(self) -> None:
         self.store.close()
         self.temporary_directory.cleanup()
@@ -240,12 +232,12 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.bot._model_command(message, ""), "model: grok")
             self.assertEqual(
                 self.bot._model_command(message, "grok"),
-                "model: Grok (web search and images use Luna)",
+                "model: Grok (web search and image analysis included)",
             )
             self.assertEqual(self.store.get_setting(key), "grok")
             self.assertEqual(
                 self.bot._model_command(message, "reset"),
-                "model: Grok (web search and images use Luna)",
+                "model: Grok (web search and image analysis included)",
             )
         with patch("bot.XAI_API_KEY", ""), patch("bot.LOCAL_AI_ONLY", False):
             self.assertEqual(self.bot._model_command(message, "grok"), "Grok isn't configured here")
@@ -305,7 +297,8 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_message(make_message("!owner’s note", 1, channel))
 
         self.assertEqual(len(channel.sent), 1)
-        self.assertIn("archived Discord bot", channel.sent[0])
+        self.assertIn("Kirmy is a Discord hangout bot", channel.sent[0])
+        self.assertNotIn("Owaua", channel.sent[0])
 
     async def test_concurrent_duplicate_command_event_replies_once(self) -> None:
         channel = FakeChannel()
@@ -758,7 +751,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(channel.sent, ["done", ""])
         image_file = channel.send_kwargs[1]["file"]
-        self.assertEqual(image_file.filename, "owaua-1.png")
+        self.assertEqual(image_file.filename, "kirmy-1.png")
 
     async def test_owner_full_mode_help_skips_command_cooldown(self) -> None:
         allowed_user = next(iter(OWNER_IDS))
@@ -1067,71 +1060,57 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         mocked_ask.assert_not_awaited()
         self.assertEqual(channel.sent, [PING_RESPONSE])
 
-    async def test_development_stop_notice_is_the_next_reply_once_per_person(self) -> None:
-        self._notice_patch.stop()
-        try:
-            channel = FakeChannel()
-            with patch("bot.ask", AsyncMock(return_value="yeah")) as mocked_ask:
-                await self.bot.on_message(
-                    make_message("<@99> hey", 1, channel, author_id=33, mentions=[self.bot.user])
-                )
-                await self.bot.on_message(
-                    make_message("<@99> again", 2, channel, author_id=33, mentions=[self.bot.user])
-                )
-                await self.bot.on_message(
-                    make_message(
-                        "<@99> other person",
-                        3,
-                        channel,
-                        author_id=44,
-                        mentions=[self.bot.user],
-                    )
-                )
-
-            self.assertEqual(
-                channel.sent,
-                [DEVELOPMENT_STOP_NOTICE, "yeah", DEVELOPMENT_STOP_NOTICE],
+    async def test_first_and_later_mentions_reply_without_development_notice(self) -> None:
+        channel = FakeChannel()
+        with patch("bot.ask", AsyncMock(return_value="yeah")) as mocked_ask:
+            await self.bot.on_message(
+                make_message("<@99> hey", 1, channel, author_id=33, mentions=[self.bot.user])
             )
-            mocked_ask.assert_awaited_once()
-            self.assertEqual(mocked_ask.await_args.kwargs["prompt"], "again")
-            self.assertEqual(self.store.get_setting(development_stop_notice_key(33)), "1")
-            self.assertEqual(self.store.get_setting(development_stop_notice_key(44)), "1")
-        finally:
-            self._notice_patch.start()
+            await self.bot.on_message(
+                make_message("<@99> again", 2, channel, author_id=33, mentions=[self.bot.user])
+            )
+            await self.bot.on_message(
+                make_message(
+                    "<@99> other person",
+                    3,
+                    channel,
+                    author_id=44,
+                    mentions=[self.bot.user],
+                )
+            )
 
-    async def test_development_stop_notice_follows_a_reply_and_skips_commands(self) -> None:
-        self._notice_patch.stop()
-        try:
-            channel = FakeChannel()
-            await self.bot.on_message(make_message("!help", 1, channel, author_id=50))
-            quoted = SimpleNamespace(content="earlier", author=SimpleNamespace(id=99))
-            with patch("bot.ask", AsyncMock(return_value="normal")) as mocked_ask:
-                await self.bot.on_message(
-                    make_message(
-                        "you there",
-                        2,
-                        channel,
-                        author_id=50,
-                        reference=SimpleNamespace(resolved=quoted),
-                    )
-                )
-                await self.bot.on_message(
-                    make_message(
-                        "still there",
-                        3,
-                        channel,
-                        author_id=50,
-                        reference=SimpleNamespace(resolved=quoted),
-                    )
-                )
-                await self.bot.on_message(
-                    make_message("<@99>", 4, channel, author_id=50, mentions=[self.bot.user])
-                )
+        self.assertEqual(channel.sent, ["yeah", "yeah", "yeah"])
+        self.assertEqual(mocked_ask.await_count, 3)
 
-            self.assertEqual(channel.sent, [HELP_TEXT, DEVELOPMENT_STOP_NOTICE, PING_RESPONSE])
-            mocked_ask.assert_not_awaited()
-        finally:
-            self._notice_patch.start()
+    async def test_replies_to_bot_continue_without_development_notice(self) -> None:
+        channel = FakeChannel()
+        await self.bot.on_message(make_message("!help", 1, channel, author_id=50))
+        quoted = SimpleNamespace(content="earlier", author=SimpleNamespace(id=99))
+        with patch("bot.ask", AsyncMock(return_value="normal")) as mocked_ask:
+            await self.bot.on_message(
+                make_message(
+                    "you there",
+                    2,
+                    channel,
+                    author_id=50,
+                    reference=SimpleNamespace(resolved=quoted),
+                )
+            )
+            await self.bot.on_message(
+                make_message(
+                    "still there",
+                    3,
+                    channel,
+                    author_id=50,
+                    reference=SimpleNamespace(resolved=quoted),
+                )
+            )
+            await self.bot.on_message(
+                make_message("<@99>", 4, channel, author_id=50, mentions=[self.bot.user])
+            )
+
+        self.assertEqual(channel.sent, [HELP_TEXT, "normal", "normal", PING_RESPONSE])
+        self.assertEqual(mocked_ask.await_count, 2)
 
     async def test_channel_chatter_is_remembered_without_a_reply(self) -> None:
         channel = FakeChannel()
@@ -1156,7 +1135,7 @@ class ChannelCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any("patch" in line["content"] for line in lines))
         self.assertFalse(any("did it" in line["content"] for line in lines))
         stored = self.store.recent_channel_lines("22", limit=10)
-        self.assertTrue(any(line["author"] == "owaua" and line["content"] == "finally" for line in stored))
+        self.assertTrue(any(line["author"] == "kirmy" and line["content"] == "finally" for line in stored))
 
     async def test_memory_erase_mine_removes_channel_lines(self) -> None:
         channel = FakeChannel()

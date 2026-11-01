@@ -165,7 +165,7 @@ class IntelligenceAskTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["model"], "grok-4.7")
         self.assertEqual(body["reasoning"], {"effort": "low"})
         self.assertIs(body["store"], False)
-        self.assertEqual(body["prompt_cache_key"], "owaua-grok")
+        self.assertEqual(body["prompt_cache_key"], "kirmy-grok")
         self.assertNotIn("tools", body)
         self.assertIn("Stay in this voice", body["instructions"])
 

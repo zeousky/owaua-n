@@ -1,8 +1,8 @@
-"""Run sefbot's own code for one owaua process.
+"""Run sefbot's own code for one kirmy process.
 
 The standalone sefbot keeps its Discord login. This module starts that same
 source as a child process with no gateway connection, and exchanges one JSON
-object per line. Owaua posts whatever the child asks it to post.
+object per line. Kirmy posts whatever the child asks it to post.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-log = logging.getLogger("owaua")
+log = logging.getLogger("kirmy")
 
 NODE_VERSION = "22.19.0"
 NODE_DOWNLOAD_SECONDS = 120
@@ -32,7 +32,7 @@ class SefbotUnavailable(RuntimeError):
 
 
 def resolve_sefbot_root(project_root: Path) -> Path | None:
-    """Find the sefbot tree: an override, the copy shipped beside owaua, then the local checkout."""
+    """Find the sefbot tree: an override, the copy shipped beside kirmy, then the local checkout."""
     override = os.getenv("SEFBOT_ROOT", "").strip()
     candidates = []
     if override:

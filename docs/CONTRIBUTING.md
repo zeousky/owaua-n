@@ -1,4 +1,4 @@
-# Contributing to Owaua
+# Contributing to Kirmy
 
 This repository is archived. The original project is not actively maintained;
 issues and pull requests may not be reviewed or answered. Fork it if you want to

@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 export PATH="$HOME/.local/bin:$PATH"
 
 echo "=========================================================="
-echo "    owaua: Switch Everything to Mac (Cloud -> Local)     "
+echo "    kirmy: Switch Everything to Mac (Cloud -> Local)     "
 echo "=========================================================="
 
 echo ""
@@ -197,7 +197,7 @@ echo "=========================================================="
 echo ""
 read -r -p "Do you want to start the bot locally now? [Y/n] " confirm || confirm="Y"
 if [[ "$confirm" =~ ^[Yy]?$ ]]; then
-  echo "Starting owaua bot locally..."
+  echo "Starting kirmy bot locally..."
   OWAUA_ENV_FILE="$ROOT_DIR/.env" "$ROOT_DIR/scripts/start-local-ai.sh"
   exec .venv/bin/python src/owaua/bot.py
 else

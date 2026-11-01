@@ -424,9 +424,9 @@ class AskTests(unittest.IsolatedAsyncioTestCase):
             persona="flirty",
             use_history=True,
             channel_lines=[
-                {"author": "owaua", "content": "WAIT WHAT", "created_at": 1},
+                {"author": "kirmy", "content": "WAIT WHAT", "created_at": 1},
                 {"author": "ckazros", "content": "what no", "created_at": 2},
-                {"author": "owaua", "content": "come here", "created_at": time.time() + 60},
+                {"author": "kirmy", "content": "come here", "created_at": time.time() + 60},
             ],
         )
         contents = [
@@ -452,7 +452,8 @@ class AskTests(unittest.IsolatedAsyncioTestCase):
             [{"role": "user", "content": "hi", "created_at": 2}],
         )
         lines = [
-            {"author": "owaua", "content": "old", "created_at": 1},
+            {"author": "kirmy", "content": "old", "created_at": 1},
+            {"author": "owaua", "content": "former identity", "created_at": 1},
             {"author": "ada", "content": "still", "created_at": 1},
         ]
         self.assertEqual(
@@ -789,7 +790,7 @@ class AskTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["tools"], gpt_full_tools())
 
     async def test_full_mode_keeps_tools_but_uses_the_normal_output_cap(self) -> None:
-        await self._ask("generate an image of a crown", full_mode=True)
+        await self._ask("help me plan a project", full_mode=True)
         payload = self.http.calls[0][1]["json"]
         self.assertEqual(payload["model"], GPT_TERRA_MODEL)
         self.assertEqual(payload["max_output_tokens"], 900)
@@ -810,12 +811,12 @@ class AskTests(unittest.IsolatedAsyncioTestCase):
                 },
             ],
         )
-        self.assertIn("Image generation is unavailable", payload["instructions"])
+        self.assertIn("medium quality", payload["instructions"])
 
-    async def test_full_mode_does_not_advertise_image_generation(self) -> None:
+    async def test_full_mode_advertises_medium_media_generation(self) -> None:
         for index in range(4):
             await self._ask(
-                "generate an image of a crown",
+                "help me plan a project",
                 event_id=f"image-{index}",
                 full_mode=True,
             )
@@ -823,7 +824,7 @@ class AskTests(unittest.IsolatedAsyncioTestCase):
         tools = [call[1]["json"]["tools"] for call in self.http.calls]
         self.assertEqual(tools, [gpt_full_tools()] * 4)
         self.assertIn(
-            "Image generation is unavailable",
+            "medium quality",
             self.http.calls[0][1]["json"]["instructions"],
         )
 
@@ -1141,6 +1142,8 @@ class AskHelperTests(unittest.TestCase):
         self.assertEqual(persona_provider("host-default-gpt"), "gemini")
 
         capable = build_capable_instructions("be blunt", language="Hungarian")
+        self.assertTrue(capable.startswith("You are Kirmy"))
+        self.assertIn("identity takes precedence", capable)
         self.assertIn("be blunt", capable)
         self.assertIn("for tone", capable)
         self.assertIn("directly, accurately, and completely", capable)
@@ -1149,6 +1152,9 @@ class AskHelperTests(unittest.TestCase):
 
     def test_instructions_stay_small(self) -> None:
         text = build_instructions("be rude")
+        self.assertTrue(text.startswith("You are Kirmy"))
+        self.assertIn("identity takes precedence", text)
+        self.assertTrue(build_instructions("be rude", human=False).startswith("You are Kirmy"))
         self.assertIn("be rude", text)
         self.assertIn("selected persona only for tone", text)
         self.assertIn("complete, useful help", text)

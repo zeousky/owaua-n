@@ -1,10 +1,10 @@
 # Self-hosting
 
-This project is archived and supplied as-is. Running a copy requires your own
-Discord application, hosting, and provider accounts. No hosted Owaua service,
+Running a copy requires your own
+Discord application, hosting, and provider accounts. No hosted service,
 credentials, support, or future updates are included. Provider model names,
 availability, prices, Discord APIs, and media integrations can change after
-this archive was created.
+this guide was written.
 
 ## Requirements
 

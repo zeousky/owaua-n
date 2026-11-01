@@ -28,8 +28,8 @@ from security import ids
 
 from cloudflare import ship_audit_record
 
-log = logging.getLogger("owaua")
-music_audit_log = logging.getLogger("owaua.music.audit")
+log = logging.getLogger("kirmy")
+music_audit_log = logging.getLogger("kirmy.music.audit")
 FFMPEG_BEFORE_OPTIONS = (
     "-nostdin -reconnect 1 -reconnect_streamed 1 "
     "-reconnect_delay_max 5 -thread_queue_size 1024 "

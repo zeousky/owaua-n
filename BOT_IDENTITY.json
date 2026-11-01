@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "botName": "Kirmy",
+  "runtime": "python",
+  "discordApplicationId": "1562279174222385212",
+  "entrypoint": "src/owaua/bot.py",
+  "githubRepository": "zeousky/owaua",
+  "legacyCheckoutName": "owaua-persona-testbot",
+  "railway": {
+    "projectName": "bots",
+    "projectId": "f9819aec-de3b-460b-850a-ff3f97ddbbd3",
+    "environment": "production",
+    "environmentId": "9ae72159-bdbf-40c6-9c3e-613e381ef6b7",
+    "serviceName": "owaua",
+    "serviceId": "d9b539c3-6533-4c4a-9f66-0bfe35b00378"
+  }
+}

@@ -1,1 +1,1 @@
-"""Owaua Discord bot runtime package."""
+"""Kirmy Discord bot runtime package."""

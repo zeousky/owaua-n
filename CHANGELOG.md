@@ -1,6 +1,12 @@
 # Changelog
 
-All notable releases of Owaua are documented here
+All notable releases of Kirmy are documented here
+
+## 2026-10-23
+
+### Fixed
+
+- Kirmy now uses its own name throughout chat prompts, personas, help, commands, and downloads.
 
 ## Unreleased — 2026-10-07
 

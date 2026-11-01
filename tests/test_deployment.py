@@ -92,7 +92,7 @@ class Client:
                     "timestamp": self.clock.time() + 1,
                     "release": self.release,
                     "bot_id": 99,
-                    "logged_in_as": "Owaua",
+                    "logged_in_as": "Kirmy",
                 }
             ).encode()
         if self.restarts and relative == "data/runtime-check.json" and self.healthy:

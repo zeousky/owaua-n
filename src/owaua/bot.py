@@ -1,4 +1,4 @@
-"""Owaua — a small Discord hangout bot."""
+"""Kirmy — a small Discord hangout bot."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(os.getenv("OWAUA_ENV_FILE") or ROOT / ".env")
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
-log = logging.getLogger("owaua")
+log = logging.getLogger("kirmy")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN", "").strip().replace("\\_", "_")
@@ -103,8 +103,9 @@ AI_CREDITS_WARNING = (
 AI_CREDITS_EXHAUSTED = False
 DISCORD_MESSAGE_LIMIT = 1900
 ASK_TIMEOUT = 80.0
-FULL_ASK_TIMEOUT = 120.0
+FULL_ASK_TIMEOUT = 420.0
 HANDLER_TIMEOUT = 140.0
+FULL_HANDLER_TIMEOUT = FULL_ASK_TIMEOUT + 20.0
 MAX_HANDLERS = 16
 FULL_MODE_GUILD_IDS = ids("BOT_FULL_MODE_GUILD_IDS")
 FULL_MODE_GUILD_ID = next(iter(FULL_MODE_GUILD_IDS), 0)
@@ -119,12 +120,12 @@ FULL_MODE_USAGE = (
 )
 PROMOTED_FULL_MODE_PROMPT_LIMIT = 8
 
-HELP_TEXT = """**Owaua commands**
+HELP_TEXT = """**Kirmy commands**
 `!help` — show this command list
 `!owner's note` — a note from the bot's owner
 `!persona rudeish low|medium|high` (or `nerdish|flirty|explicit|irritating|cute|femboy|normal|random`) — view or switch your persona
 `!human on|off` — talk like a person, or use the usual hangout-bot voice
-`!model grok|luna|deepseek|mercury|reset` — choose your chat model (web search and images use Luna; full mode uses Grok)
+`!model grok|luna|deepseek|mercury|reset` — choose your chat model (Grok handles web search and image analysis; full mode adds media generation)
 `!context status|on|off|clear` — control this channel's surrounding chat (Manage Server to change)
 `!language <full name>|reset` — this server's reply language and profile (Manage Server)
 `!music help` — play a song in your voice channel
@@ -137,12 +138,12 @@ HELP_TEXT = """**Owaua commands**
 
 Each command has a 25s cooldown."""
 
-OWNER_HELP_TEXT = """**Owaua commands**
+OWNER_HELP_TEXT = """**Kirmy commands**
 `!help` — show this command list
 `!owner's note` — a note from the bot's owner
 `!persona rudeish low|medium|high` (or `nerdish|flirty|explicit|irritating|cute|femboy|normal|random`) — view or switch your persona
 `!human on|off` — talk like a person, or use the usual hangout-bot voice
-`!model grok|luna|deepseek|mercury|reset` — choose your chat model (web search and images use Luna; full mode uses Grok)
+`!model grok|luna|deepseek|mercury|reset` — choose your chat model (Grok handles web search and image analysis; full mode adds media generation)
 `!context status|on|off|clear` — control this channel's surrounding chat (Manage Server to change)
 `!language <full name>|reset` — this server's reply language and profile (Manage Server)
 `!music help` — play a song in your voice channel
@@ -152,7 +153,7 @@ OWNER_HELP_TEXT = """**Owaua commands**
 `!memory correct <id> <text>` / `!memory forget <id>` — correct or remove one note
 `!reset all` — fully reset this bot in this server (Manage Server required)
 `!switch bot` — run sefbot in this server, or switch back (Manage Server)
-`!full mode on|off` — capable Grok answers with tools (bot owner only)
+`!full mode on|off` — Grok answers with tools and unlimited medium-quality image or 720p video generation (bot owner only)
 `!security status|pause|resume` — API usage and emergency pause (bot owner only)
 `!shutdown` — fully stop the bot (bot owner only)
 `!pricing` — show model pricing (bot owner only)
@@ -165,7 +166,11 @@ MODEL_PRICING = {
     "openai/gpt-5.6-luna": (0.20, 1.20, "0.02 cached input"),
     "gpt-5.6-luna": (0.20, 1.20, "0.02 cached input"),
     "anthropic/claude-haiku-4-5": (1.00, 5.00, "provider pricing"),
-    "deepseek-v4.1-flash": (0.30, 1.20, "InferX list; promo $0.09 in / $0.36 out"),
+    "deepseek-flash": (
+        0.30,
+        1.20,
+        "peak rates; off-peak half; cached input $0.006 peak / $0.003 off-peak",
+    ),
     "zai/glm-5.3-flash": (0.50, 2.00, "provider pricing"),
     "openai/gpt-oss-20b": (0.075, 0.30, "0.0375 cached input"),
     "grok-4.7": (2.00, 6.00, "0.50 cached input"),
@@ -184,13 +189,12 @@ def _pricing_line(label: str, model: str) -> str:
 
 
 def pricing_text() -> str:
-    return "**Owaua model pricing**\nDefault chat model: grok-4.7 when configured (input $2, output $6; 0.50 cached input). Full mode uses grok-4.7 at medium reasoning. Hangout search and images use gpt-6-luna. Optional text models: deepseek-v4.1-flash and mercury-2.5.\nProvider logs report actual input/output tokens and tool activity.\nCurrent pricing: https://docs.x.ai/developers/pricing, https://developers.openai.com/api/docs/pricing/, and https://www.inceptionlabs.ai/"
+    return "**Kirmy model pricing**\nDefault chat model: grok-4.7 when configured (input $2, output $6; 0.50 cached input). Full mode uses grok-4.7 at medium reasoning and Grok Imagine for medium-quality images and 720p videos. Grok handles web search and image analysis when selected; other models may route these requests to gpt-6-luna. Optional text models: deepseek-flash (DeepSeek-V4.1-Flash-1017) and mercury-2.5.\nProvider logs report actual input/output tokens and tool activity.\nCurrent pricing: https://api-docs.deepseek.com/quick_start/pricing/, https://docs.x.ai/developers/pricing, https://developers.openai.com/api/docs/pricing/, and https://www.inceptionlabs.ai/"
 
 
 OWNER_NOTE_TEXT = (
-    "Owaua is an archived Discord bot. This copy is operated and configured by "
-    "the person who installed it; there is no hosted Owaua service or active "
-    "support commitment."
+    "Kirmy is a Discord hangout bot operated and configured by its owner. "
+    "Ask the operator about this bot's availability and support."
 )
 
 
@@ -226,8 +230,8 @@ def switch_bot_request(text: str) -> str | None:
     choice = parts[2]
     if choice in {"sef", "sefbot", "on"}:
         return "sef"
-    if choice in {"owaua", "off"}:
-        return "owaua"
+    if choice in {"kirmy", "owaua", "off"}:  # Accept the former command name too.
+        return "kirmy"
     return "usage"
 
 
@@ -281,11 +285,11 @@ def full_mode_location(message: object) -> bool:
 def should_warn_for_ai_credits(
     message: object, normalized: str, bot_user: object | None
 ) -> bool:
-    """Identify Owaua chat and AI-mode attempts before they can reach a provider."""
+    """Identify Kirmy chat and AI-mode attempts before they can reach a provider."""
     if is_full_mode_command(normalized) or is_topgg_full_mode_command(normalized):
         return True
 
-    # These names are not Owaua commands, but users may still try the older
+    # These names are not Kirmy commands, but users may still try the older
     # chat-style spellings. Keep music, help, memory and other local commands
     # working without sending a credits notice.
     if re.match(
@@ -407,17 +411,6 @@ PROFILE_UPDATE_TIMEOUT = 20.0
 DISCORD_RETRY_INITIAL_DELAY = 5.0
 DISCORD_RETRY_MAX_DELAY = 300.0
 PING_RESPONSE = "yeah?"
-DEVELOPMENT_STOP_NOTICE = (
-    "Owaua's development is stopping. Its very unlikely I'll be doing anything "
-    "with the bot anymore. im very grateful for yall being here through the "
-    "development of owaua , thank you"
-)
-
-
-def development_stop_notice_key(user_id: object) -> str:
-    return f"development_stop_notice:{user_id}"
-
-
 def replies_to_bot(message: object, bot_user: object | None) -> bool:
     """True when this Discord message replies to the bot."""
     if bot_user is None:
@@ -781,20 +774,20 @@ class PersonaBot(discord.Client):
             await self._dispatch_command(proxy, command, argument)
 
         descriptions = {
-            "help": "Show Owaua commands",
+            "help": "Show Kirmy commands",
             "persona": "View or change your persona",
             "human": "Toggle the human voice",
             "language": "Set this server's reply language",
             "music": "Play or control music",
             "memory": "View or manage memory",
-            "reset": "Reset Owaua settings",
+            "reset": "Reset Kirmy settings",
             "pricing": "Show API usage and pricing",
             "security": "Show security and API status",
-            "switch": "Switch between Owaua and Sefbot",
+            "switch": "Switch between Kirmy and Sefbot",
             "context": "Control channel conversation context",
             "model": "Choose your chat model",
-            "shutdown": "Shut down Owaua",
-            "owners_note": "Show a note from Owaua's owner",
+            "shutdown": "Shut down Kirmy",
+            "owners_note": "Show a note from Kirmy's owner",
             "full_mode": "Enable or disable full mode",
             "topgg_full_mode": "Manage promoted full mode access",
             "discordify_full_mode": "Manage promoted full mode access",
@@ -1147,43 +1140,43 @@ class PersonaBot(discord.Client):
         if message.guild is None:
             return "!switch bot only works in a server"
         if request == "usage" or request is None:
-            return "usage: !switch bot [sef|owaua]"
+            return "usage: !switch bot [sef|kirmy]"
         if not self._can_switch_bot(message):
             return "you need the Manage Server permission to switch this server"
         enabled = self.sefbot_enabled(message.guild.id)
         target = request
         if target == "toggle":
-            target = "owaua" if enabled else "sef"
+            target = "kirmy" if enabled else "sef"
         key = f"bot_engine:{message.guild.id}"
-        if target == "owaua":
+        if target == "kirmy":
             if not enabled and request != "toggle":
-                return "this server is already running owaua"
-            self.memory.set_setting(key, "owaua")
+                return "this server is already running kirmy"
+            self.memory.set_setting(key, "kirmy")
             try:
                 await self._sync_sefbot_commands(message.guild, [])
             except (discord.HTTPException, discord.Forbidden):
                 log.warning("could not remove sefbot slash commands in guild %s", message.guild.id)
-            return "this server is back on owaua. mention me and I'll talk like usual."
+            return "this server is back on kirmy. mention me and I'll talk like usual."
         if enabled:
-            return "this server is already running sefbot. `!switch bot` brings owaua back."
+            return "this server is already running sefbot. `!switch bot` brings kirmy back."
         try:
             host = self._sefbot_host()
             await host.ensure()
             commands = await host.slash_commands()
             await self._sync_sefbot_commands(message.guild, commands)
         except SefbotUnavailable as exc:
-            return f"{exc}. this server is still on owaua."
+            return f"{exc}. this server is still on kirmy."
         except Exception:
             log.warning("could not register sefbot slash commands in guild %s", message.guild.id)
             self.memory.set_setting(key, "sef")
             return (
                 "this server is now running sefbot. mention me, or use comma commands like `,help`. "
-                "slash commands couldn't be registered. `!switch bot` brings owaua back."
+                "slash commands couldn't be registered. `!switch bot` brings kirmy back."
             )
         self.memory.set_setting(key, "sef")
         return (
             "this server is now running sefbot. mention me, or use comma commands like `,help`. "
-            "`!switch bot` brings owaua back. other servers still run owaua."
+            "`!switch bot` brings kirmy back. other servers still run kirmy."
         )
 
     def _sefbot_embeds(self, action: dict[str, object]) -> list[discord.Embed]:
@@ -1385,7 +1378,7 @@ class PersonaBot(discord.Client):
             if guild is not None and not interaction.response.is_done():
                 try:
                     await interaction.response.send_message(
-                        "this server is running owaua. `!switch bot` turns on sefbot here.",
+                        "this server is running kirmy. `!switch bot` turns on sefbot here.",
                         ephemeral=True,
                     )
                 except (discord.HTTPException, discord.Forbidden):
@@ -1537,7 +1530,7 @@ class PersonaBot(discord.Client):
         ready_path.write_text(json.dumps(readiness),encoding="utf-8")
         os.chmod(ready_path,0o600)
         log.info("Logged in as %s; persona=%s", self.user, self.selected_persona)
-        log.info("Owaua features ready: useful answers, durable notes, conversation summaries, metered requests, auto search, documents, context controls; mercury_configured=%s", bool(INCEPTION_API_KEY))
+        log.info("Kirmy features ready: useful answers, durable notes, conversation summaries, metered requests, auto search, documents, context controls; mercury_configured=%s", bool(INCEPTION_API_KEY))
 
     async def on_disconnect(self) -> None:
         if not self.is_closed():
@@ -1551,9 +1544,9 @@ class PersonaBot(discord.Client):
         self.sefbot_prepare = asyncio.create_task(self._prepare_sefbot())
         try:
             synced = await self.command_tree.sync()
-            log.info("Synced %d Owaua slash commands", len(synced))
+            log.info("Synced %d Kirmy slash commands", len(synced))
         except discord.HTTPException:
-            log.exception("Could not sync Owaua slash commands")
+            log.exception("Could not sync Kirmy slash commands")
         reset_ids_raw = os.getenv("BOT_RESET_GUILD_QUOTA_IDS", "").strip()
         if reset_ids_raw:
             for raw_id in reset_ids_raw.split(","):
@@ -1693,22 +1686,10 @@ class PersonaBot(discord.Client):
             audit_filtered("message_too_long")
             return
         addressed = self.user is not None and self.user in message.mentions
-        notice_reply = False
-        if (
-            message.guild is not None
-            and matched_command(normalized) is None
-            and not addressed
-            and replies_to_bot(message, self.user)
-            and self.memory.get_setting(
-                development_stop_notice_key(message.author.id), ""
-            )
-            != "1"
-        ):
-            notice_reply = True
         if (message.guild is not None and matched_command(normalized) is None
                 and not (full_mode_location(message) and is_full_mode_command(normalized))
                 and not addressed
-                and not notice_reply):
+                and not replies_to_bot(message, self.user)):
             return
         if not self.message_events.claim(message.id):
             audit_filtered("duplicate_message")
@@ -1729,7 +1710,12 @@ class PersonaBot(discord.Client):
             if unrestricted_music:
                 await self._handle_message(message)
             else:
-                await asyncio.wait_for(self._handle_message(message), timeout=HANDLER_TIMEOUT)
+                timeout = (
+                    FULL_HANDLER_TIMEOUT
+                    if self.full_mode_active(message)
+                    else HANDLER_TIMEOUT
+                )
+                await asyncio.wait_for(self._handle_message(message), timeout=timeout)
         except asyncio.TimeoutError:
             log.warning("Message handler exceeded deadline")
             audit_filtered("handler_timeout")
@@ -1749,28 +1735,6 @@ class PersonaBot(discord.Client):
             if task is not current_task and not task.done():
                 task.cancel()
         await self.close()
-
-    async def _development_stop_notice(self, message: discord.Message) -> bool:
-        claimed = await asyncio.to_thread(
-            self.memory.claim_setting_once,
-            development_stop_notice_key(message.author.id),
-        )
-        if not claimed:
-            return False
-        await self._reply(message, DEVELOPMENT_STOP_NOTICE)
-        if message.guild is not None and self.memory.channel_context_enabled(
-            str(message.guild.id), str(message.channel.id)
-        ):
-            await self._remember_channel_text(
-                event_id=f"line:assistant:{message.id}",
-                scope_id=str(message.channel.id),
-                server_id=str(message.guild.id),
-                user_id=str(message.author.id),
-                author="owaua",
-                content=DEVELOPMENT_STOP_NOTICE,
-                created_at=time.time(),
-            )
-        return True
 
     async def _handle_message(self, message: discord.Message) -> None:
         if message.author.bot:
@@ -1869,8 +1833,6 @@ class PersonaBot(discord.Client):
         mentioned = self.user is not None and self.user in message.mentions
         replying = replies_to_bot(message, self.user)
         if not (is_dm or mentioned or replying):
-            return
-        if await self._development_stop_notice(message):
             return
 
         prompt = message.content
@@ -2007,7 +1969,7 @@ class PersonaBot(discord.Client):
                     scope_id=scope_id,
                     server_id=str(message.guild.id),
                     user_id=user_id,
-                    author="owaua",
+                    author="kirmy",
                     content=answer,
                     created_at=time.time(),
                 )
@@ -2015,10 +1977,24 @@ class PersonaBot(discord.Client):
             raise
         except asyncio.TimeoutError:
             log.warning("AI reply exceeded deadline")
-            await self._reply(message,"The AI took too long; try again in a moment.")
+            await self._reply(message, "AI request timed out; try again in a moment.")
         except Exception as exc:
             log.warning("AI reply failed (%s)",type(exc).__name__)
-            await self._reply(message, "I couldn't reach the AI provider just now.")
+            detail = " ".join(str(exc).split())
+            detail = re.sub(r"(?i)\bbearer\s+\S+", "Bearer [redacted]", detail)
+            detail = re.sub(
+                r"(?i)\b(?:sk-[A-Za-z0-9_-]{12,}|xai-[A-Za-z0-9_-]{12,}|gsk_[A-Za-z0-9_-]{12,}|AIza[A-Za-z0-9_-]{30,})\b",
+                "[redacted]",
+                detail,
+            )
+            detail = re.sub(
+                r"(?i)(api[_ -]?key|authorization|access[_ -]?token)(\s*[:=]\s*)\S+",
+                r"\1\2[redacted]",
+                detail,
+            )
+            if not detail:
+                detail = type(exc).__name__
+            await self._reply(message, f"AI error: {detail[:500]}")
         finally:
             if occupies_slot:
                 inflight.discard(message.author.id)
@@ -2286,11 +2262,11 @@ class PersonaBot(discord.Client):
         stored = fallback if selected == "reset" else selected
         self.memory.set_setting(key, stored)
         labels = {
-            "grok": "Grok (web search and images use Luna)",
+            "grok": "Grok (web search and image analysis included)",
             "luna": "Luna",
             "deepseek": "DeepSeek (web search, images, and full mode use Luna)",
             "mercury": "Mercury 2.5 (web search and images use Luna)",
-            "reset": "Grok (web search and images use Luna)" if stored == "grok" else "Luna",
+            "reset": "Grok (web search and image analysis included)" if stored == "grok" else "Luna",
         }
         return "model: " + labels[selected]
 
@@ -2387,7 +2363,7 @@ class PersonaBot(discord.Client):
             self.memory.reset_server_data, server_id
         )
         self.response_languages.pop(f"guild:{server_id}", None)
-        self.memory.set_setting(f"bot_engine:{server_id}", "owaua")
+        self.memory.set_setting(f"bot_engine:{server_id}", "kirmy")
         try:
             await self._sync_sefbot_commands(message.guild, [])
         except (discord.HTTPException, discord.Forbidden):
@@ -2435,10 +2411,34 @@ class PersonaBot(discord.Client):
                     "",
                     reference=message if not chunks and index == 0 else None,
                     allowed_mentions=discord.AllowedMentions.none(),
-                    file=discord.File(io.BytesIO(image), filename=f"owaua-{index + 1}.png"),
+                    file=discord.File(
+                        io.BytesIO(image),
+                        filename=f"kirmy-{index + 1}{getattr(content, 'image_extension', '.png')}",
+                    ),
                 )
             except (discord.HTTPException, discord.Forbidden):
                 log.exception("Could not send a generated image")
+                return
+        for index, video in enumerate(getattr(content, "video_bytes", ())):
+            if self.shutdown_requested:
+                return
+            try:
+                await message.channel.send(
+                    "",
+                    reference=(
+                        message
+                        if not chunks
+                        and not getattr(content, "image_bytes", ())
+                        and index == 0
+                        else None
+                    ),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                    file=discord.File(
+                        io.BytesIO(video), filename=f"kirmy-{index + 1}.mp4"
+                    ),
+                )
+            except (discord.HTTPException, discord.Forbidden):
+                log.exception("Could not send a generated video")
                 return
 
     async def close(self) -> None:

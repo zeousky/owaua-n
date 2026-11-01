@@ -45,11 +45,11 @@ MODEL_PATH="$MLX_ROOT/maple-2bit-mlx"
 
 if ! "$PROJECT_VENV/bin/python" -c 'import sys; raise SystemExit(0 if sys.platform == "linux" else 1)' >/dev/null 2>&1; then
   rm -rf "$PROJECT_VENV"
-  echo "Creating the Owaua Linux virtual environment ..."
+  echo "Creating the Kirmy Linux virtual environment ..."
   python3 -m venv "$PROJECT_VENV"
 fi
 
-echo "Installing Owaua dependencies ..."
+echo "Installing Kirmy dependencies ..."
 "$PROJECT_VENV/bin/python" -m pip install --upgrade pip setuptools wheel
 "$PROJECT_VENV/bin/python" -m pip install -r "$INSTALL_ROOT/requirements.txt"
 

@@ -1,10 +1,10 @@
-# using owaua
+# using Kirmy
 
-This command reference describes the archived Owaua bot. Commands that call AI providers can incur charges for the operator. `!human on` changes the reply style. DMs are disabled by default.
+This command reference describes the Python Kirmy bot. Commands that call AI providers can incur charges for the operator. `!human on` changes the reply style. DMs are disabled by default.
 
-Personas are `rudeish` (`low`, `medium`, `high`, medium by default), `nerdish`, `flirty`, `explicit`, `irritating`, `cute`, `femboy`, and `normal`. `explicit` is opt-in adult sexual roleplay and is not part of `!persona random`. Grok is the usual chat model when configured, and full mode uses Grok 4.7 with medium reasoning. `!model luna`, `!model deepseek`, and `!model mercury` select the other text models when configured; hangout searches and images may use Luna, and the reply identifies that routing.
+Personas are `rudeish` (`low`, `medium`, `high`, medium by default), `nerdish`, `flirty`, `explicit`, `irritating`, `cute`, `femboy`, and `normal`. `explicit` is opt-in adult sexual roleplay and is not part of `!persona random`. Grok is the usual chat model when configured; it can search the web and analyze attached images. Full mode uses Grok 4.7 with medium reasoning and can generate medium-quality images or 720p videos through Grok Imagine. `!model luna`, `!model deepseek`, and `!model mercury` select the other text models when configured; their search and image requests may use Luna.
 
-It can help with code, explain things, look things up, read images, and read PDF, text, Markdown, CSV, and JSON files. Casual replies stay short. A real question can run longer. Code tools are only for approved full-mode users.
+It can help with code, explain things, look things up, read images, and read PDF, text, Markdown, CSV, and JSON files. Casual replies stay short. A real question can run longer. Code tools and media generation are only for approved full-mode users. The bot imposes no daily media or per-user API quota on the owner; other approved full-mode users can generate up to three images or videos per day. Videos default to five seconds and 720p, and can be requested from one to fifteen seconds. With full mode on, attach one reference image and describe the edit, such as a new pose or photo style.
 
 ## commands
 
@@ -35,6 +35,6 @@ Channel context is on by default. Turning it off forgets the stored lines for th
 
 Two files per message, 8 MB each. PDFs stop at 20 pages. Scanned or locked PDFs are skipped. The file text is not saved into memory.
 
-Each person gets 30 model calls per 10 minutes (`API_REQUESTS_PER_USER`, `API_WINDOW_SECONDS`). Chat is also capped at eight messages a minute and three replies at once.
+Each person gets 30 model calls per 10 minutes (`API_REQUESTS_PER_USER`, `API_WINDOW_SECONDS`); the owner's media-generation calls are exempt from that per-user quota. Chat is also capped at eight messages a minute and three replies at once.
 
 [License](../LICENSE) · [Self-hosting and privacy](SELF_HOSTING.md)

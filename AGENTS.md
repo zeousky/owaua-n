@@ -1,6 +1,22 @@
-# Working on Owaua
+# Working on Kirmy
 
-This repository is the Python Owaua Discord bot, not the separate Sefbot or
+## Bot identity: Kirmy (Python)
+
+This checkout is **Kirmy**, even though its historical folder/repository names suggest otherwise. Read `BOT_IDENTITY.json` before choosing files or deployment targets.
+
+| User means | Codebase | GitHub repository | Railway project / service | Discord application ID |
+| --- | --- | --- | --- | --- |
+| **Owaua bot** | **Node.js**, local `kirmy/`, `src/bot.js` | `zeousky/kirmy-bot` | `bots` / `kirmy` | `1442127404607737999` |
+| **Kirmy bot** | **Python**, local `owaua-persona-testbot/`, `src/owaua/bot.py` | `zeousky/owaua` | `bots` / `owaua` | `1562279174222385212` |
+
+- The identity swap happened on 2026-10-23. Treat older chats, memories, project labels, repository names, source directory names, environment-variable prefixes, and service names as historical aliases. They do not reverse this mapping.
+- A request to change **Kirmy** belongs here. A request to change **Owaua** belongs in the other codebase; switch to that repository before editing. Do not implement a named bot's change in whichever checkout happens to be open.
+- Before an authorized live action, match the project and service IDs in `BOT_IDENTITY.json` and verify the running/target Discord application ID. Use explicit project, environment, and service selectors; do not rely on a linked CLI default. If identities disagree, resolve that mismatch before acting. Never print tokens or credentials during verification.
+- Preserve existing tokens, memory filenames, database paths, and compatibility names. Do not swap tokens again, rename storage, or undo the identity swap unless the user explicitly requests it.
+- **owaua.com is a separate website**, in `github-site-repos/owaua.com` / `zeousky/owaua.com`, Railway project `websites`. Its `owaua` service is not either bot service.
+- These identity instructions do not authorize deployment, command registration, paid calls, production data access, or starting another bot instance. Normal development remains offline.
+
+This repository is the Python Kirmy Discord bot, not the separate Sefbot or
 website repositories. Work from the repository root; use relative paths.
 
 ## Setup and checks

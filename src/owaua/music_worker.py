@@ -35,7 +35,7 @@ def main() -> None:
             raise RuntimeError("Media processing requires a Unix host")
     import deno
     deno_bin = deno.find_deno_bin()
-    cache_dir = tempfile.mkdtemp(prefix="owaua-music-")
+    cache_dir = tempfile.mkdtemp(prefix="kirmy-music-")
     try:
         _solver_cache(cache_dir)
         _resolve(unrestricted, deno_bin)

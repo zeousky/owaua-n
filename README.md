@@ -1,13 +1,15 @@
-# owaua
+# Kirmy
 
-> **Archived project:** Owaua is no longer actively maintained or operated as a hosted bot. This repository is provided as-is for people who want to study, fork, or self-host it. There is no hosted service, support commitment, or guarantee that third-party APIs and integrations still work.
+> **Agent routing:** This is **Kirmy (Python)**. Historical checkout: `owaua-persona-testbot`; GitHub: `zeousky/owaua`; Railway: `bots / owaua`; Discord application: `1562279174222385212`. Read [`BOT_IDENTITY.json`](BOT_IDENTITY.json) and [`AGENTS.md`](AGENTS.md) before choosing a bot or deployment target. **Owaua is the separate Node.js bot.**
 
-Owaua is a Discord bot for chatting in servers. Ping it and it talks back.
+This Python code runs as **Kirmy** on Railway's `owaua` service. The Node code in the separate `kirmy` checkout runs as **Owaua**. Prompts, personas, commands and downloads use the current bot identities. Historical source paths, environment variable names, repository URLs and infrastructure endpoints remain compatible with existing installations; memories and settings stay with each process.
+
+Kirmy is a Discord bot for chatting in servers. Ping it and it talks back.
 
 Pick a persona: `rudeish`, `nerdish`, `flirty`, `explicit`, `irritating`, `cute`, `femboy`, or `normal`.
 Casual chat stays short; ask for help and it gives fuller answers. It can search
 the web, read images and documents, remember useful details, and play music.
-Grok is the default chat model when configured. Full mode uses Grok 4.7 with medium reasoning. Luna handles hangout search and images. DeepSeek and Mercury stay available for text chat.
+Grok is the default chat model when configured. It can search the web and analyze images, including images attached to a Discord message. Full mode uses Grok 4.7 with medium reasoning and can generate medium-quality images or 720p videos with Grok Imagine. Luna remains available as a chat model; DeepSeek and Mercury stay available for text chat.
 
 Use `!help` for all commands. A few essentials:
 

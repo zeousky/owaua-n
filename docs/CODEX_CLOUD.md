@@ -1,5 +1,7 @@
 # Development setup
 
+**Bot identity:** This repository develops **Kirmy (Python)**. Its historical checkout/repository labels are not the bot's current name. Read `../BOT_IDENTITY.json` and the root `AGENTS.md` first. Owaua = Node.js / `zeousky/kirmy-bot`; Kirmy = Python / `zeousky/owaua`. Cloud development does not authorize live deployment.
+
 This repository can be edited in a local checkout or a cloud development
 environment. No Discord token, provider API key, database, or running bot is
 needed for offline development.

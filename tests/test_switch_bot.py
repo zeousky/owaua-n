@@ -50,8 +50,8 @@ class SwitchBotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(switch_bot_request("!SWITCH BOT sef"), "sef")
         self.assertEqual(switch_bot_request("!switch bot sefbot"), "sef")
         self.assertEqual(switch_bot_request("!switch bot on"), "sef")
-        self.assertEqual(switch_bot_request("!switch bot owaua"), "owaua")
-        self.assertEqual(switch_bot_request("!switch bot off"), "owaua")
+        self.assertEqual(switch_bot_request("!switch bot kirmy"), "kirmy")
+        self.assertEqual(switch_bot_request("!switch bot off"), "kirmy")
         self.assertEqual(switch_bot_request("!switch"), "usage")
         self.assertEqual(switch_bot_request("!switch bot later"), "usage")
         self.assertIsNone(switch_bot_request("!help"))
@@ -79,8 +79,8 @@ class SwitchBotTests(unittest.IsolatedAsyncioTestCase):
 
         self.bot.command_used.clear()
         await self.bot.on_message(make_message("!switch bot", 5, switched, guild_id=11))
-        self.assertIn("back on owaua", switched.sent[-1])
-        self.assertEqual(self.store.get_setting("bot_engine:11"), "owaua")
+        self.assertIn("back on kirmy", switched.sent[-1])
+        self.assertEqual(self.store.get_setting("bot_engine:11"), "kirmy")
 
         await self.bot.on_message(make_message("!help", 6, switched, guild_id=11))
         self.assertEqual(switched.sent[-1], HELP_TEXT)

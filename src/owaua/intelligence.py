@@ -305,7 +305,7 @@ async def extract_pending_notes(http, memory) -> None:
             )
             import logging
 
-            logging.getLogger("owaua").warning(
+            logging.getLogger("kirmy").warning(
                 "Durable-note extraction deferred or quarantined (%s)",
                 type(exc).__name__,
             )
