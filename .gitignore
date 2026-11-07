@@ -44,3 +44,8 @@ node_modules/
 .idea/
 .vscode/
 *~
+
+!.env.*.example
+.build/
+.swiftpm/
+/backups/
